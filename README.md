@@ -111,6 +111,38 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 インストール後、**設定 → アプリ → 既定のアプリ → ホームアプリ** で WorkLauncher を選ぶか、
 アプリ内の 設定 → ランチャー → 既定のホームアプリ から切り替えてください。
 
+### リリース署名
+
+署名情報が無い場合は署名なし APK が出力されるだけで、ビルド自体は成功します。
+
+ローカルで署名する場合は、リポジトリ直下に `keystore.properties`（git 管理外）を置きます。
+
+```properties
+storeFile=release.jks
+storePassword=****
+keyAlias=****
+keyPassword=****
+```
+
+キーストアは次のように作成します。
+
+```bash
+keytool -genkeypair -v -keystore release.jks -alias worklauncher \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+GitHub Actions で署名する場合は、リポジトリの Secrets に以下を登録します。
+`SIGNING_KEYSTORE_BASE64` は `base64 -w0 release.jks` の出力です。
+
+| Secret | 内容 |
+| --- | --- |
+| `SIGNING_KEYSTORE_BASE64` | キーストアを base64 エンコードしたもの |
+| `SIGNING_STORE_PASSWORD` | キーストアのパスワード |
+| `SIGNING_KEY_ALIAS` | 鍵のエイリアス |
+| `SIGNING_KEY_PASSWORD` | 鍵のパスワード |
+
+**キーストアと `keystore.properties` は絶対にコミットしないでください**（`.gitignore` 済み）。
+
 ## 権限について
 
 すべて任意です。許可しない機能は、その画面だけが空になります。
