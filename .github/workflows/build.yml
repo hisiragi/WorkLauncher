@@ -68,4 +68,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lint-reports
-          path: app/build/reports/lint/
+          path: app/build/reports/lint-results-*
