@@ -136,6 +136,8 @@
     <string name="home_agenda">今日の予定</string>
     <string name="home_all_apps">すべてのアプリ</string>
     <string name="home_battery">バッテリー残量</string>
+    <string name="home_battery_charging">充電中</string>
+    <string name="home_on_break_for">休憩中 · %1$s経過</string>
     <string name="home_details">詳細</string>
     <string name="home_frequent_apps">よく使うアプリ</string>
     <string name="home_remaining_today">所定労働まで残り %1$s</string>

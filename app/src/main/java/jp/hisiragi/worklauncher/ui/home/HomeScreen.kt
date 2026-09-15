@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
@@ -66,7 +67,7 @@ import jp.hisiragi.worklauncher.ui.components.EmptyState
 import jp.hisiragi.worklauncher.ui.components.SectionCard
 import jp.hisiragi.worklauncher.ui.components.StatTile
 import jp.hisiragi.worklauncher.ui.components.combinedClickableCompat
-import jp.hisiragi.worklauncher.ui.components.rememberBatteryLevel
+import jp.hisiragi.worklauncher.ui.components.rememberBatteryStatus
 import jp.hisiragi.worklauncher.ui.theme.PriorityColors
 import jp.hisiragi.worklauncher.util.TimeUtils
 
@@ -171,7 +172,7 @@ fun HomeScreen(
 
 @Composable
 private fun ClockHeader(state: HomeUiState) {
-    val battery = rememberBatteryLevel()
+    val battery = rememberBatteryStatus()
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = TimeUtils.formatTime(state.nowMillis, state.settings.use24HourClock),
@@ -185,17 +186,28 @@ private fun ClockHeader(state: HomeUiState) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.width(12.dp))
-            if (battery >= 0) {
+            if (battery.known) {
+                val batteryTint = if (battery.charging) {
+                    MaterialTheme.colorScheme.secondary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 Icon(
-                    imageVector = Icons.Filled.BatteryStd,
-                    contentDescription = stringResource(R.string.home_battery),
+                    imageVector = if (battery.charging) {
+                        Icons.Filled.BatteryChargingFull
+                    } else {
+                        Icons.Filled.BatteryStd
+                    },
+                    contentDescription = stringResource(
+                        if (battery.charging) R.string.home_battery_charging else R.string.home_battery
+                    ),
                     modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = batteryTint,
                 )
                 Text(
-                    text = "$battery%",
+                    text = "${battery.level}%",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = batteryTint,
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -276,17 +288,37 @@ private fun QuickActionRow(
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.action_clock_out), maxLines = 1)
             }
-            OutlinedButton(
-                onClick = onToggleBreak,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-            ) {
-                Icon(
-                    Icons.Filled.FreeBreakfast,
-                    contentDescription = stringResource(
-                        if (state.onBreak) R.string.action_break_end else R.string.action_break_start
+            val breakLabel = stringResource(
+                if (state.onBreak) R.string.action_break_end else R.string.action_break_start
+            )
+            if (state.onBreak) {
+                Button(
+                    onClick = onToggleBreak,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary,
                     ),
-                    modifier = Modifier.size(18.dp),
-                )
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.FreeBreakfast,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(breakLabel, maxLines = 1)
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onToggleBreak,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.FreeBreakfast,
+                        contentDescription = breakLabel,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         } else {
             Button(
@@ -406,6 +438,36 @@ private fun WorkSummaryCard(state: HomeUiState, onOpenTimeCard: () -> Unit) {
                     MaterialTheme.colorScheme.secondary
                 },
             )
+        }
+        if (state.onBreak) {
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FreeBreakfast,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.home_on_break_for,
+                            TimeUtils.formatDuration(state.currentBreakMinutes),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+            }
         }
         val remaining = state.settings.standardWorkMinutes - state.workedMinutes
         if (state.clockedIn && remaining > 0) {

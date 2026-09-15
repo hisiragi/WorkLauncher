@@ -136,6 +136,8 @@
     <string name="home_agenda">Today\'s schedule</string>
     <string name="home_all_apps">All apps</string>
     <string name="home_battery">Battery level</string>
+    <string name="home_battery_charging">Charging</string>
+    <string name="home_on_break_for">On break · %1$s so far</string>
     <string name="home_details">Details</string>
     <string name="home_frequent_apps">Frequently used</string>
     <string name="home_remaining_today">%1$s left to a standard day</string>

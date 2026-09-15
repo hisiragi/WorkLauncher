@@ -49,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,6 +60,7 @@ import jp.hisiragi.worklauncher.core.AppViewModelFactory
 import jp.hisiragi.worklauncher.data.db.NoteEntity
 import jp.hisiragi.worklauncher.ui.components.EmptyState
 import jp.hisiragi.worklauncher.ui.theme.NoteColors
+import jp.hisiragi.worklauncher.ui.theme.noteTint
 import jp.hisiragi.worklauncher.util.TimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -153,20 +153,20 @@ fun NotesScreen(
 
 @Composable
 private fun NoteCard(note: NoteEntity, onClick: () -> Unit, onTogglePin: () -> Unit) {
-    val tint = NoteColors[note.colorIndex.coerceIn(NoteColors.indices)]
+    val tint = noteTint(note.colorIndex)
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = tint.copy(alpha = 0.55f)),
+        colors = CardDefaults.cardColors(containerColor = tint.container),
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = note.title.ifBlank { stringResource(R.string.notes_untitled) },
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color.Black.copy(alpha = 0.82f),
+                    color = tint.content,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -179,7 +179,7 @@ private fun NoteCard(note: NoteEntity, onClick: () -> Unit, onTogglePin: () -> U
                         tint = if (note.pinned) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            Color.Black.copy(alpha = 0.3f)
+                            tint.content.copy(alpha = 0.35f)
                         },
                     )
                 }
@@ -189,7 +189,7 @@ private fun NoteCard(note: NoteEntity, onClick: () -> Unit, onTogglePin: () -> U
                 Text(
                     text = note.body,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Black.copy(alpha = 0.72f),
+                    color = tint.content.copy(alpha = 0.82f),
                     maxLines = 8,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -200,7 +200,7 @@ private fun NoteCard(note: NoteEntity, onClick: () -> Unit, onTogglePin: () -> U
                     TimeUtils.toLocalDateTime(note.updatedAt).toLocalDate()
                 ),
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.Black.copy(alpha = 0.45f),
+                color = tint.content.copy(alpha = 0.6f),
             )
         }
     }
@@ -277,12 +277,12 @@ private fun NoteEditorSheet(
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                NoteColors.forEachIndexed { index, color ->
+                NoteColors.indices.forEach { index ->
                     Spacer(
                         modifier = Modifier
                             .size(if (colorIndex == index) 34.dp else 28.dp)
                             .clip(CircleShape)
-                            .background(color)
+                            .background(noteTint(index).container)
                             .clickable { colorIndex = index }
                     )
                 }

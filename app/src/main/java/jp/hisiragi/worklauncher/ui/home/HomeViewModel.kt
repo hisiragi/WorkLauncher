@@ -45,6 +45,12 @@ data class HomeUiState(
     val clockedIn: Boolean get() = timeCard?.clockInAt != null && timeCard.clockOutAt == null
     val onBreak: Boolean get() = timeCard?.breakStartedAt != null
 
+    /** Minutes elapsed in the break currently in progress. */
+    val currentBreakMinutes: Int
+        get() = timeCard?.breakStartedAt
+            ?.let { ((nowMillis - it) / 60_000L).coerceAtLeast(0L).toInt() }
+            ?: 0
+
     /** The meeting the user should be looking at right now, or the next one. */
     val currentOrNextEvent: AgendaEvent?
         get() = todayEvents.firstOrNull { it.endAt >= nowMillis }
