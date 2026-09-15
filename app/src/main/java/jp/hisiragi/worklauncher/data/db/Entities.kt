@@ -105,3 +105,19 @@ data class ExpenseEntity(
     /** File name of the receipt photo inside the app's receipts directory. */
     val receiptFile: String? = null,
 )
+
+/**
+ * A third-party app widget placed on the home screen. Widgets sharing a
+ * [stackId] occupy one slot and are swiped between.
+ */
+@Entity(tableName = "home_widgets", indices = [Index("stackId")])
+data class HomeWidgetEntity(
+    /** The id allocated by AppWidgetHost; also the row's identity. */
+    @PrimaryKey val appWidgetId: Int,
+    val stackId: String,
+    /** Position within the stack. */
+    val position: Int = 0,
+    /** Position of the stack itself among the home screen's slots. */
+    val stackOrder: Int = 0,
+    val heightDp: Int = 180,
+)

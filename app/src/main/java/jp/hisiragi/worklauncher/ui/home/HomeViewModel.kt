@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jp.hisiragi.worklauncher.core.AppContainer
+import jp.hisiragi.worklauncher.core.WidgetHostController
+import jp.hisiragi.worklauncher.data.db.HomeWidgetEntity
 import jp.hisiragi.worklauncher.data.db.TaskEntity
 import jp.hisiragi.worklauncher.data.db.TimeCardEntity
 import jp.hisiragi.worklauncher.data.repo.TimeCardRepository
@@ -24,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -188,6 +191,29 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             taskId = task?.id,
             taskTitle = task?.title.orEmpty(),
         )
+    }
+
+    val widgetHost: WidgetHostController get() = container.widgetHostController
+
+    /** Widgets grouped into their stacks, in the order the stacks are shown. */
+    val widgetStacks: StateFlow<List<List<HomeWidgetEntity>>> =
+        container.widgetHostController.widgets
+            .map { widgets ->
+                widgets.groupBy { it.stackId }
+                    .values
+                    .sortedBy { stack -> stack.minOf { it.stackOrder } }
+                    .map { stack -> stack.sortedBy { it.position } }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun addWidget(appWidgetId: Int, heightDp: Int, stackId: String?) {
+        viewModelScope.launch {
+            container.widgetHostController.add(appWidgetId, stackId, heightDp)
+        }
+    }
+
+    fun removeWidget(widget: HomeWidgetEntity) {
+        viewModelScope.launch { container.widgetHostController.remove(widget.appWidgetId) }
     }
 
     fun launchApp(context: Context, app: LauncherApp) = container.appLauncher.launch(context, app)

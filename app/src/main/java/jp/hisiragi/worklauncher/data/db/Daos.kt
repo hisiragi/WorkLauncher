@@ -164,3 +164,27 @@ interface ExpenseDao {
     @Delete
     suspend fun delete(expense: ExpenseEntity)
 }
+
+@Dao
+interface HomeWidgetDao {
+    @Query("SELECT * FROM home_widgets ORDER BY stackOrder ASC, position ASC")
+    fun observeAll(): Flow<List<HomeWidgetEntity>>
+
+    @Query("SELECT * FROM home_widgets ORDER BY stackOrder ASC, position ASC")
+    suspend fun listAll(): List<HomeWidgetEntity>
+
+    @Query("SELECT * FROM home_widgets WHERE stackId = :stackId ORDER BY position ASC")
+    suspend fun listStack(stackId: String): List<HomeWidgetEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(widget: HomeWidgetEntity)
+
+    @Query("DELETE FROM home_widgets WHERE appWidgetId = :appWidgetId")
+    suspend fun delete(appWidgetId: Int)
+
+    @Query("SELECT COALESCE(MAX(stackOrder), -1) + 1 FROM home_widgets")
+    suspend fun nextStackOrder(): Int
+
+    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM home_widgets WHERE stackId = :stackId")
+    suspend fun nextPosition(stackId: String): Int
+}

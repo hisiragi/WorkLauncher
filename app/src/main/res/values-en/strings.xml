@@ -288,4 +288,12 @@
     <string name="expense_receipt_remove">Remove receipt</string>
     <string name="expense_receipt_missing">Could not load the image</string>
     <string name="action_close">Close</string>
+    <string name="widget_add">Add widget</string>
+    <string name="widget_add_to_stack">Add to this stack</string>
+    <string name="widget_remove">Remove widget</string>
+    <string name="widget_edit">Edit widgets</string>
+    <string name="widget_done_editing">Done</string>
+    <string name="widget_picker_title">Choose a widget</string>
+    <string name="widget_picker_empty">No widgets available</string>
+    <string name="widget_unavailable">Widget unavailable</string>
 </resources>

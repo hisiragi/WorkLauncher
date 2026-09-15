@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryStd
@@ -43,8 +44,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +63,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import jp.hisiragi.worklauncher.R
 import jp.hisiragi.worklauncher.core.AppViewModelFactory
+import jp.hisiragi.worklauncher.core.WidgetHostController
+import jp.hisiragi.worklauncher.data.db.HomeWidgetEntity
 import jp.hisiragi.worklauncher.data.db.TaskEntity
 import jp.hisiragi.worklauncher.domain.AgendaEvent
 import jp.hisiragi.worklauncher.domain.LauncherApp
@@ -69,6 +76,8 @@ import jp.hisiragi.worklauncher.ui.components.StatTile
 import jp.hisiragi.worklauncher.ui.components.combinedClickableCompat
 import jp.hisiragi.worklauncher.ui.components.rememberBatteryStatus
 import jp.hisiragi.worklauncher.ui.theme.PriorityColors
+import jp.hisiragi.worklauncher.ui.widgets.WidgetPickerSheet
+import jp.hisiragi.worklauncher.ui.widgets.WidgetStack
 import jp.hisiragi.worklauncher.util.TimeUtils
 
 @Composable
@@ -85,9 +94,19 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val gatedApp by viewModel.gatedApp.collectAsStateWithLifecycle()
+    val widgetStacks by viewModel.widgetStacks.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var editingWidgets by remember { mutableStateOf(false) }
+    // Holds the stack a picked widget joins; NEW_STACK starts a fresh one.
+    var addingToStack by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { viewModel.refreshAgenda() }
+
+    // The host only receives provider updates while the home screen is visible.
+    DisposableEffect(Unit) {
+        viewModel.widgetHost.startListening()
+        onDispose { viewModel.widgetHost.stopListening() }
+    }
 
     Box(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
@@ -98,6 +117,18 @@ fun HomeScreen(
             item { ClockHeader(state) }
 
             item { SearchRow(onClick = onOpenSearch) }
+
+            item {
+                WidgetSection(
+                    stacks = widgetStacks,
+                    controller = viewModel.widgetHost,
+                    editing = editingWidgets,
+                    onToggleEditing = { editingWidgets = !editingWidgets },
+                    onAddStack = { addingToStack = NEW_STACK },
+                    onAddToStack = { stackId -> addingToStack = stackId },
+                    onRemove = viewModel::removeWidget,
+                )
+            }
 
             item {
                 QuickActionRow(
@@ -167,6 +198,76 @@ fun HomeScreen(
             onDismiss = viewModel::dismissGate,
             onConfirm = { viewModel.launchGatedApp(context) },
         )
+    }
+
+    addingToStack?.let { target ->
+        WidgetPickerSheet(
+            controller = viewModel.widgetHost,
+            onDismiss = { addingToStack = null },
+            onPicked = { appWidgetId, heightDp ->
+                viewModel.addWidget(
+                    appWidgetId = appWidgetId,
+                    heightDp = heightDp,
+                    stackId = target.takeIf { it != NEW_STACK },
+                )
+                addingToStack = null
+            },
+        )
+    }
+}
+
+/** Sentinel for "put this widget in a stack of its own". */
+private const val NEW_STACK = ""
+
+@Composable
+private fun WidgetSection(
+    stacks: List<List<HomeWidgetEntity>>,
+    controller: WidgetHostController,
+    editing: Boolean,
+    onToggleEditing: () -> Unit,
+    onAddStack: () -> Unit,
+    onAddToStack: (String) -> Unit,
+    onRemove: (HomeWidgetEntity) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        stacks.forEach { stack ->
+            WidgetStack(
+                widgets = stack,
+                controller = controller,
+                editing = editing,
+                onAddToStack = { onAddToStack(stack.first().stackId) },
+                onRemove = onRemove,
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (stacks.isEmpty() || editing) {
+                OutlinedButton(
+                    onClick = onAddStack,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.widget_add), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            if (stacks.isNotEmpty()) {
+                TextButton(onClick = onToggleEditing) {
+                    Text(
+                        stringResource(
+                            if (editing) R.string.widget_done_editing else R.string.widget_edit
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        }
     }
 }
 

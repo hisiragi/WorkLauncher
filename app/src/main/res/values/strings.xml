@@ -288,4 +288,12 @@
     <string name="expense_receipt_remove">領収書を削除</string>
     <string name="expense_receipt_missing">画像を読み込めませんでした</string>
     <string name="action_close">閉じる</string>
+    <string name="widget_add">ウィジェットを追加</string>
+    <string name="widget_add_to_stack">このスタックに追加</string>
+    <string name="widget_remove">ウィジェットを削除</string>
+    <string name="widget_edit">ウィジェットを編集</string>
+    <string name="widget_done_editing">完了</string>
+    <string name="widget_picker_title">追加するウィジェット</string>
+    <string name="widget_picker_empty">利用できるウィジェットがありません</string>
+    <string name="widget_unavailable">ウィジェットを読み込めません</string>
 </resources>

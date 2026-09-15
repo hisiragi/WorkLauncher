@@ -42,6 +42,10 @@ class AppContainer(context: Context) {
 
     val receiptStore: ReceiptStore by lazy { ReceiptStore(appContext) }
 
+    val widgetHostController: WidgetHostController by lazy {
+        WidgetHostController(appContext, database.homeWidgetDao())
+    }
+
     val quickContactRepository: QuickContactRepository by lazy {
         QuickContactRepository(appContext, database.quickContactDao())
     }
