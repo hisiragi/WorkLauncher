@@ -102,4 +102,6 @@ data class ExpenseEntity(
     val memo: String = "",
     val project: String? = null,
     val reimbursed: Boolean = false,
+    /** File name of the receipt photo inside the app's receipts directory. */
+    val receiptFile: String? = null,
 )

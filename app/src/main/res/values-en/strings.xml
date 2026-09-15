@@ -282,4 +282,10 @@
     <string name="workplace_office">Office</string>
     <string name="workplace_remote">Remote</string>
     <string name="workplace_trip">Business trip</string>
+    <string name="expense_receipt">Receipt</string>
+    <string name="expense_receipt_capture">Take photo</string>
+    <string name="expense_receipt_pick">Choose image</string>
+    <string name="expense_receipt_remove">Remove receipt</string>
+    <string name="expense_receipt_missing">Could not load the image</string>
+    <string name="action_close">Close</string>
 </resources>

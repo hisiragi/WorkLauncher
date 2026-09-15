@@ -282,4 +282,10 @@
     <string name="workplace_office">出社</string>
     <string name="workplace_remote">在宅</string>
     <string name="workplace_trip">出張</string>
+    <string name="expense_receipt">領収書</string>
+    <string name="expense_receipt_capture">撮影</string>
+    <string name="expense_receipt_pick">画像から選択</string>
+    <string name="expense_receipt_remove">領収書を削除</string>
+    <string name="expense_receipt_missing">画像を読み込めませんでした</string>
+    <string name="action_close">閉じる</string>
 </resources>

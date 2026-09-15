@@ -7,6 +7,7 @@ import jp.hisiragi.worklauncher.data.repo.CalendarRepository
 import jp.hisiragi.worklauncher.data.repo.ExpenseRepository
 import jp.hisiragi.worklauncher.data.repo.NoteRepository
 import jp.hisiragi.worklauncher.data.repo.QuickContactRepository
+import jp.hisiragi.worklauncher.data.repo.ReceiptStore
 import jp.hisiragi.worklauncher.data.repo.TaskRepository
 import jp.hisiragi.worklauncher.data.repo.TimeCardRepository
 import jp.hisiragi.worklauncher.data.repo.UsageRepository
@@ -38,6 +39,8 @@ class AppContainer(context: Context) {
     val timeCardRepository: TimeCardRepository by lazy { TimeCardRepository(database.timeCardDao()) }
 
     val expenseRepository: ExpenseRepository by lazy { ExpenseRepository(database.expenseDao()) }
+
+    val receiptStore: ReceiptStore by lazy { ReceiptStore(appContext) }
 
     val quickContactRepository: QuickContactRepository by lazy {
         QuickContactRepository(appContext, database.quickContactDao())

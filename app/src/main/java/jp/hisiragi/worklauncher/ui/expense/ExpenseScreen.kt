@@ -1,8 +1,14 @@
 package jp.hisiragi.worklauncher.ui.expense
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +32,8 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -47,11 +56,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -60,10 +72,12 @@ import jp.hisiragi.worklauncher.core.AppViewModelFactory
 import jp.hisiragi.worklauncher.data.db.ExpenseEntity
 import jp.hisiragi.worklauncher.domain.ExpenseCategory
 import jp.hisiragi.worklauncher.ui.components.EmptyState
+import jp.hisiragi.worklauncher.ui.components.rememberReceiptThumbnail
 import jp.hisiragi.worklauncher.ui.components.LabeledRow
 import jp.hisiragi.worklauncher.ui.components.SectionCard
 import jp.hisiragi.worklauncher.ui.components.StatTile
 import jp.hisiragi.worklauncher.util.TimeUtils
+import java.io.File
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.util.Locale
@@ -77,6 +91,7 @@ fun ExpenseScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var adding by remember { mutableStateOf(false) }
+    var viewingReceipt by remember { mutableStateOf<String?>(null) }
 
     val csvHeader = listOf(
         stringResource(R.string.csv_date),
@@ -188,8 +203,10 @@ fun ExpenseScreen(
                     ExpenseRow(
                         expense = expense,
                         currency = state.settings.currencySymbol,
+                        receiptFile = expense.receiptFile?.let(viewModel::receiptFile),
                         onToggleReimbursed = { viewModel.toggleReimbursed(expense) },
                         onDelete = { viewModel.delete(expense) },
+                        onOpenReceipt = { viewingReceipt = expense.receiptFile },
                     )
                 }
             }
@@ -198,21 +215,52 @@ fun ExpenseScreen(
 
     if (adding) {
         AddExpenseDialog(
+            viewModel = viewModel,
             onDismiss = { adding = false },
-            onSave = { amount, category, memo, project ->
-                viewModel.add(amount, category, memo, project)
+            onSave = { amount, category, memo, project, receipt ->
+                viewModel.add(amount, category, memo, project, receipt)
                 adding = false
             },
         )
     }
+
+    viewingReceipt?.let { name ->
+        ReceiptViewerDialog(
+            file = viewModel.receiptFile(name),
+            onDismiss = { viewingReceipt = null },
+        )
+    }
+}
+
+@Composable
+private fun ReceiptViewerDialog(file: File, onDismiss: () -> Unit) {
+    val bitmap by rememberReceiptThumbnail(file, maxPx = 1600)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = {
+            bitmap?.let {
+                Image(
+                    bitmap = it,
+                    contentDescription = stringResource(R.string.expense_receipt),
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Fit,
+                )
+            } ?: Text(stringResource(R.string.expense_receipt_missing))
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
+        },
+    )
 }
 
 @Composable
 private fun ExpenseRow(
     expense: ExpenseEntity,
     currency: String,
+    receiptFile: File?,
     onToggleReimbursed: () -> Unit,
     onDelete: () -> Unit,
+    onOpenReceipt: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -239,6 +287,14 @@ private fun ExpenseRow(
                         MaterialTheme.colorScheme.outline
                     },
                 )
+            }
+            if (receiptFile != null) {
+                ReceiptThumbnail(
+                    file = receiptFile,
+                    size = 40.dp,
+                    onClick = onOpenReceipt,
+                )
+                Spacer(Modifier.width(10.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -277,17 +333,83 @@ private fun ExpenseRow(
 }
 
 @Composable
+private fun ReceiptThumbnail(
+    file: File,
+    size: Dp,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bitmap by rememberReceiptThumbnail(file, maxPx = 256)
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        bitmap?.let {
+            Image(
+                bitmap = it,
+                contentDescription = stringResource(R.string.expense_receipt),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } ?: Icon(
+            imageVector = Icons.Filled.Receipt,
+            contentDescription = stringResource(R.string.expense_receipt),
+            modifier = Modifier.size(size / 2),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 private fun AddExpenseDialog(
+    viewModel: ExpenseViewModel,
     onDismiss: () -> Unit,
-    onSave: (Long, ExpenseCategory, String, String?) -> Unit,
+    onSave: (Long, ExpenseCategory, String, String?, String?) -> Unit,
 ) {
     var amount by remember { mutableStateOf("") }
     var memo by remember { mutableStateOf("") }
     var project by remember { mutableStateOf("") }
     var category by remember { mutableStateOf(ExpenseCategory.TRANSPORT) }
+    var receiptName by remember { mutableStateOf<String?>(null) }
+    var pendingCapture by remember { mutableStateOf<String?>(null) }
+
+    val captureLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { saved ->
+        val name = pendingCapture
+        pendingCapture = null
+        if (saved && name != null) {
+            viewModel.discardUnusedReceipt(receiptName)
+            receiptName = name
+        } else {
+            viewModel.discardUnusedReceipt(name)
+        }
+    }
+
+    val pickLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.importReceipt(uri) { imported ->
+                if (imported != null) {
+                    viewModel.discardUnusedReceipt(receiptName)
+                    receiptName = imported
+                }
+            }
+        }
+    }
+
+    fun discardAndDismiss() {
+        viewModel.discardUnusedReceipt(receiptName)
+        onDismiss()
+    }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::discardAndDismiss,
         title = { Text(stringResource(R.string.expense_add)) },
         text = {
             Column(
@@ -325,6 +447,57 @@ private fun AddExpenseDialog(
                     label = { Text(stringResource(R.string.expense_field_project)) },
                     singleLine = true,
                 )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    receiptName?.let { name ->
+                        ReceiptThumbnail(
+                            file = viewModel.receiptFile(name),
+                            size = 56.dp,
+                            onClick = {},
+                        )
+                    }
+                    TextButton(
+                        onClick = {
+                            val (name, uri) = viewModel.newReceiptTarget()
+                            pendingCapture = name
+                            captureLauncher.launch(uri)
+                        },
+                    ) {
+                        Icon(
+                            Icons.Filled.PhotoCamera,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(stringResource(R.string.expense_receipt_capture))
+                    }
+                    TextButton(
+                        onClick = {
+                            pickLauncher.launch(
+                                PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                )
+                            )
+                        },
+                    ) { Text(stringResource(R.string.expense_receipt_pick)) }
+                    if (receiptName != null) {
+                        IconButton(
+                            onClick = {
+                                viewModel.discardUnusedReceipt(receiptName)
+                                receiptName = null
+                            },
+                        ) {
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = stringResource(R.string.expense_receipt_remove),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -335,13 +508,14 @@ private fun AddExpenseDialog(
                         category,
                         memo,
                         project.takeIf { it.isNotBlank() },
+                        receiptName,
                     )
                 },
                 enabled = (amount.toLongOrNull() ?: 0L) > 0,
             ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+            TextButton(onClick = ::discardAndDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
