@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import jp.hisiragi.worklauncher.ui.agenda.AgendaScreen
+import jp.hisiragi.worklauncher.ui.assistant.AssistantScreen
 import jp.hisiragi.worklauncher.ui.contacts.ContactsScreen
 import jp.hisiragi.worklauncher.ui.drawer.AppDrawerScreen
 import jp.hisiragi.worklauncher.ui.expense.ExpenseScreen
@@ -40,6 +41,7 @@ object Route {
     const val CONTACTS = "contacts"
     const val USAGE = "usage"
     const val EXPENSES = "expenses"
+    const val ASSISTANT = "assistant"
     const val SETTINGS = "settings"
 }
 
@@ -128,6 +130,12 @@ fun WorkLauncherNavHost(
         composable(Route.CONTACTS) { ContactsScreen(onBack = back) }
         composable(Route.USAGE) { UsageScreen(onBack = back) }
         composable(Route.EXPENSES) { ExpenseScreen(onBack = back) }
+        composable(Route.ASSISTANT) {
+            AssistantScreen(
+                onBack = back,
+                onOpenSettings = { navController.navigate(Route.SETTINGS) },
+            )
+        }
         composable(Route.SETTINGS) { SettingsScreen(onBack = back) }
     }
 }

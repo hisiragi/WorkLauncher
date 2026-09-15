@@ -13,6 +13,9 @@ import jp.hisiragi.worklauncher.data.repo.TimeCardRepository
 import jp.hisiragi.worklauncher.data.repo.UsageRepository
 import jp.hisiragi.worklauncher.data.settings.SettingsRepository
 import jp.hisiragi.worklauncher.service.FocusController
+import jp.hisiragi.worklauncher.service.llm.LlmManager
+import jp.hisiragi.worklauncher.service.llm.NotificationDigest
+import jp.hisiragi.worklauncher.service.llm.ReceiptReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,6 +48,14 @@ class AppContainer(context: Context) {
     val widgetHostController: WidgetHostController by lazy {
         WidgetHostController(appContext, database.homeWidgetDao())
     }
+
+    val llmManager: LlmManager by lazy {
+        LlmManager(appContext, settingsRepository, applicationScope)
+    }
+
+    val receiptReader: ReceiptReader by lazy { ReceiptReader(llmManager) }
+
+    val notificationDigest: NotificationDigest by lazy { NotificationDigest(llmManager) }
 
     val quickContactRepository: QuickContactRepository by lazy {
         QuickContactRepository(appContext, database.quickContactDao())

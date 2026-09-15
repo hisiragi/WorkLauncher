@@ -8,6 +8,8 @@ import jp.hisiragi.worklauncher.core.AppContainer
 import jp.hisiragi.worklauncher.data.db.ExpenseEntity
 import jp.hisiragi.worklauncher.data.settings.LauncherSettings
 import jp.hisiragi.worklauncher.domain.ExpenseCategory
+import jp.hisiragi.worklauncher.domain.LlmAvailability
+import jp.hisiragi.worklauncher.domain.ReceiptDraft
 import jp.hisiragi.worklauncher.util.CsvExporter
 import jp.hisiragi.worklauncher.util.TimeUtils
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,6 +100,15 @@ class ExpenseViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun receiptFile(name: String): File = container.receiptStore.fileFor(name)
+
+    val llmAvailability: StateFlow<LlmAvailability> = container.llmManager.availability
+
+    /** Reads the receipt with OCR + the LLM; null when nothing could be parsed. */
+    fun readReceipt(name: String, onResult: (ReceiptDraft?) -> Unit) {
+        viewModelScope.launch {
+            onResult(container.receiptReader.read(container.receiptStore.fileFor(name)))
+        }
+    }
 
     fun toggleReimbursed(expense: ExpenseEntity) {
         viewModelScope.launch {

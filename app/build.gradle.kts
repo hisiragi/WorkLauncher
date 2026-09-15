@@ -70,6 +70,18 @@ android {
         }
     }
 
+    // The on-device LLM runtime ships ~26MB of native code per ABI, so a
+    // universal APK would carry four copies. One APK per real-device ABI keeps
+    // each download to roughly a third of that; x86 is emulator-only.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -124,6 +136,13 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.androidx.datastore.preferences)
+
+    // On-device LLM runtime. Idle unless the user installs a model file.
+    implementation(libs.mediapipe.tasks.genai)
+
+    // Offline OCR, so a text-only model can still read a receipt photo.
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.text.recognition.japanese)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

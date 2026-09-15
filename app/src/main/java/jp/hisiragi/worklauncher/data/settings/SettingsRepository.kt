@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import jp.hisiragi.worklauncher.domain.DrawerSort
+import jp.hisiragi.worklauncher.domain.LlmBackend
 import jp.hisiragi.worklauncher.domain.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -41,6 +42,14 @@ data class LauncherSettings(
     val showAgendaCard: Boolean = true,
     val showTasksCard: Boolean = true,
     val currencySymbol: String = "¥",
+    /** Off until the user installs a model or points at an endpoint. */
+    val llmBackend: LlmBackend = LlmBackend.NONE,
+    /** Absolute path of an on-device .task/.bin model file. */
+    val llmModelPath: String = "",
+    /** Base URL of an OpenAI-compatible server, e.g. http://192.168.1.10:11434 */
+    val llmEndpoint: String = "",
+    val llmRemoteModel: String = "",
+    val llmSummarizeNotifications: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_SEARCH_ENGINE = "https://www.google.com/search?q="
@@ -75,6 +84,13 @@ class SettingsRepository(private val context: Context) {
             showAgendaCard = prefs[Keys.CARD_AGENDA] ?: true,
             showTasksCard = prefs[Keys.CARD_TASKS] ?: true,
             currencySymbol = prefs[Keys.CURRENCY] ?: "¥",
+            llmBackend = prefs[Keys.LLM_BACKEND]
+                ?.let { runCatching { LlmBackend.valueOf(it) }.getOrNull() }
+                ?: LlmBackend.NONE,
+            llmModelPath = prefs[Keys.LLM_MODEL_PATH].orEmpty(),
+            llmEndpoint = prefs[Keys.LLM_ENDPOINT].orEmpty(),
+            llmRemoteModel = prefs[Keys.LLM_REMOTE_MODEL].orEmpty(),
+            llmSummarizeNotifications = prefs[Keys.LLM_NOTIFICATION_DIGEST] ?: false,
         )
     }
 
@@ -100,6 +116,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setShowAgendaCard(show: Boolean) = put(Keys.CARD_AGENDA, show)
     suspend fun setShowTasksCard(show: Boolean) = put(Keys.CARD_TASKS, show)
     suspend fun setCurrencySymbol(symbol: String) = put(Keys.CURRENCY, symbol)
+    suspend fun setLlmBackend(backend: LlmBackend) = put(Keys.LLM_BACKEND, backend.name)
+    suspend fun setLlmModelPath(path: String) = put(Keys.LLM_MODEL_PATH, path.trim())
+    suspend fun setLlmEndpoint(url: String) = put(Keys.LLM_ENDPOINT, url.trim())
+    suspend fun setLlmRemoteModel(model: String) = put(Keys.LLM_REMOTE_MODEL, model.trim())
+    suspend fun setLlmSummarizeNotifications(enabled: Boolean) =
+        put(Keys.LLM_NOTIFICATION_DIGEST, enabled)
 
     private suspend fun <T> put(key: Preferences.Key<T>, value: T) {
         context.dataStore.edit { it[key] = value }
@@ -128,5 +150,10 @@ class SettingsRepository(private val context: Context) {
         val CARD_AGENDA = booleanPreferencesKey("card_agenda")
         val CARD_TASKS = booleanPreferencesKey("card_tasks")
         val CURRENCY = stringPreferencesKey("currency")
+        val LLM_BACKEND = stringPreferencesKey("llm_backend")
+        val LLM_MODEL_PATH = stringPreferencesKey("llm_model_path")
+        val LLM_ENDPOINT = stringPreferencesKey("llm_endpoint")
+        val LLM_REMOTE_MODEL = stringPreferencesKey("llm_remote_model")
+        val LLM_NOTIFICATION_DIGEST = booleanPreferencesKey("llm_notification_digest")
     }
 }

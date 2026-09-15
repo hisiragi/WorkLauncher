@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Contacts
@@ -66,6 +67,7 @@ fun HubScreen(
         HubTile(Route.CONTACTS, R.string.hub_contacts, R.string.hub_contacts_sub, Icons.Filled.Contacts),
         HubTile(Route.EXPENSES, R.string.hub_expenses, R.string.hub_expenses_sub, Icons.AutoMirrored.Filled.ReceiptLong),
         HubTile(Route.USAGE, R.string.hub_usage, R.string.hub_usage_sub, Icons.Filled.Insights),
+        HubTile(Route.ASSISTANT, R.string.hub_assistant, R.string.hub_assistant_sub, Icons.Filled.AutoAwesome),
         HubTile(Route.DRAWER, R.string.hub_apps, R.string.hub_apps_sub, Icons.Filled.Apps),
         HubTile(Route.SETTINGS, R.string.hub_settings, R.string.hub_settings_sub, Icons.Filled.Settings),
     )

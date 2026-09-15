@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -44,6 +46,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -376,6 +379,9 @@ private fun AddExpenseDialog(
     var category by remember { mutableStateOf(ExpenseCategory.TRANSPORT) }
     var receiptName by remember { mutableStateOf<String?>(null) }
     var pendingCapture by remember { mutableStateOf<String?>(null) }
+    var reading by remember { mutableStateOf(false) }
+    var readFailed by remember { mutableStateOf(false) }
+    val llmAvailability by viewModel.llmAvailability.collectAsStateWithLifecycle()
 
     val captureLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -497,6 +503,54 @@ private fun AddExpenseDialog(
                             )
                         }
                     }
+                }
+
+                // Only offered once a model is configured; the rest of the form
+                // works exactly the same without one.
+                if (receiptName != null && llmAvailability.isReady) {
+                    OutlinedButton(
+                        onClick = {
+                            val name = receiptName ?: return@OutlinedButton
+                            reading = true
+                            readFailed = false
+                            viewModel.readReceipt(name) { draft ->
+                                reading = false
+                                if (draft == null) {
+                                    readFailed = true
+                                } else {
+                                    draft.amount?.let { amount = it.toString() }
+                                    draft.vendor?.let { memo = it }
+                                    draft.category?.let { category = it }
+                                }
+                            }
+                        },
+                        enabled = !reading,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (reading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        } else {
+                            Icon(
+                                Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        Text(stringResource(R.string.expense_receipt_read))
+                    }
+                }
+
+                if (readFailed) {
+                    Text(
+                        text = stringResource(R.string.expense_receipt_read_failed),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         },

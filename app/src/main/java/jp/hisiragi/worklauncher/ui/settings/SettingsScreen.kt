@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -46,8 +47,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import jp.hisiragi.worklauncher.R
 import jp.hisiragi.worklauncher.core.AppViewModelFactory
 import jp.hisiragi.worklauncher.domain.DrawerSort
+import jp.hisiragi.worklauncher.domain.LlmAvailability
+import jp.hisiragi.worklauncher.domain.LlmBackend
 import jp.hisiragi.worklauncher.domain.LauncherApp
 import jp.hisiragi.worklauncher.domain.ThemeMode
+import jp.hisiragi.worklauncher.ui.components.LabeledRow
 import jp.hisiragi.worklauncher.ui.components.SectionCard
 import jp.hisiragi.worklauncher.util.Launch
 import jp.hisiragi.worklauncher.util.LauncherStatus
@@ -62,6 +66,7 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val settings = state.settings
+    val llmAvailability by viewModel.llmAvailability.collectAsStateWithLifecycle()
     var editingWorkStart by remember { mutableStateOf(false) }
     var editingWorkEnd by remember { mutableStateOf(false) }
 
@@ -325,6 +330,66 @@ fun SettingsScreen(
             }
 
             item {
+                SectionCard(title = stringResource(R.string.settings_llm_section)) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        LlmBackend.entries.forEach { backend ->
+                            FilterChip(
+                                selected = settings.llmBackend == backend,
+                                onClick = { viewModel.setLlmBackend(backend) },
+                                label = { Text(llmBackendLabel(backend)) },
+                            )
+                        }
+                    }
+
+                    when (settings.llmBackend) {
+                        LlmBackend.NONE -> Unit
+
+                        LlmBackend.ON_DEVICE -> {
+                            Spacer(Modifier.height(8.dp))
+                            TextFieldRow(
+                                label = stringResource(R.string.settings_llm_model_path),
+                                placeholder = stringResource(R.string.settings_llm_model_path_hint),
+                                value = settings.llmModelPath,
+                                onValueChange = viewModel::setLlmModelPath,
+                            )
+                        }
+
+                        LlmBackend.REMOTE -> {
+                            Spacer(Modifier.height(8.dp))
+                            TextFieldRow(
+                                label = stringResource(R.string.settings_llm_endpoint),
+                                placeholder = stringResource(R.string.settings_llm_endpoint_hint),
+                                value = settings.llmEndpoint,
+                                onValueChange = viewModel::setLlmEndpoint,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            TextFieldRow(
+                                label = stringResource(R.string.settings_llm_remote_model),
+                                placeholder = stringResource(R.string.settings_llm_remote_model_hint),
+                                value = settings.llmRemoteModel,
+                                onValueChange = viewModel::setLlmRemoteModel,
+                            )
+                        }
+                    }
+
+                    if (settings.llmBackend != LlmBackend.NONE) {
+                        Spacer(Modifier.height(8.dp))
+                        LabeledRow(
+                            label = stringResource(R.string.settings_llm_status),
+                            value = when (val current = llmAvailability) {
+                                is LlmAvailability.Ready -> current.label
+                                is LlmAvailability.Unavailable -> current.reason
+                                else -> "—"
+                            },
+                        )
+                    }
+                }
+            }
+
+            item {
                 SectionCard(title = stringResource(R.string.settings_search_engine)) {
                     val engines = listOf(
                         stringResource(R.string.engine_google) to "https://www.google.com/search?q=",
@@ -428,6 +493,36 @@ fun SettingsScreen(
         )
     }
 }
+
+/**
+ * Commits on every keystroke. These settings write to DataStore, which is cheap
+ * and last-write-wins, so there is nothing to save explicitly.
+ */
+@Composable
+private fun TextFieldRow(
+    label: String,
+    placeholder: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun llmBackendLabel(backend: LlmBackend): String = stringResource(
+    when (backend) {
+        LlmBackend.NONE -> R.string.settings_llm_backend_none
+        LlmBackend.ON_DEVICE -> R.string.settings_llm_backend_on_device
+        LlmBackend.REMOTE -> R.string.settings_llm_backend_remote
+    }
+)
 
 @Composable
 private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {

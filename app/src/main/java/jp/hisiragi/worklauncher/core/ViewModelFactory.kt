@@ -6,6 +6,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import jp.hisiragi.worklauncher.WorkLauncherApp
 import jp.hisiragi.worklauncher.ui.agenda.AgendaViewModel
+import jp.hisiragi.worklauncher.ui.assistant.AssistantViewModel
 import jp.hisiragi.worklauncher.ui.contacts.ContactsViewModel
 import jp.hisiragi.worklauncher.ui.drawer.AppDrawerViewModel
 import jp.hisiragi.worklauncher.ui.expense.ExpenseViewModel
@@ -32,5 +33,6 @@ val AppViewModelFactory = viewModelFactory {
     initializer { ContactsViewModel(container()) }
     initializer { UsageViewModel(container()) }
     initializer { ExpenseViewModel(container()) }
+    initializer { AssistantViewModel(container()) }
     initializer { SettingsViewModel(container()) }
 }
