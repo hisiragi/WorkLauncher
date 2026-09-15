@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Briefcase body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,44 L78,44 A4,4 0 0 1 82,48 L82,72 A4,4 0 0 1 78,76 L30,76 A4,4 0 0 1 26,72 L26,48 A4,4 0 0 1 30,44 Z" />
+    <!-- Handle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,34 L62,34 A6,6 0 0 1 68,40 L68,44 L62,44 L62,40 L46,40 L46,44 L40,44 L40,40 A6,6 0 0 1 46,34 Z" />
+    <!-- Latch -->
+    <path
+        android:fillColor="#1B3A5C"
+        android:pathData="M50,56 L58,56 L58,64 L50,64 Z" />
+</vector>
