@@ -11,6 +11,7 @@ import androidx.core.content.ContextCompat
 import jp.hisiragi.worklauncher.data.db.AppMetaDao
 import jp.hisiragi.worklauncher.data.db.AppMetaEntity
 import jp.hisiragi.worklauncher.domain.AppCategory
+import jp.hisiragi.worklauncher.domain.AppOrdering
 import jp.hisiragi.worklauncher.domain.LauncherApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,8 @@ class AppRepository(
     private val context: Context,
     private val appMetaDao: AppMetaDao,
     private val scope: CoroutineScope,
+    /** Called when packages change, so stale icons are not shown. */
+    private val onPackagesChanged: () -> Unit = {},
 ) {
     private val packageManager: PackageManager = context.packageManager
 
@@ -45,7 +48,6 @@ class AppRepository(
                     packageName = activity.packageName,
                     activityName = activity.activityName,
                     label = meta?.customLabel?.takeIf { it.isNotBlank() } ?: activity.label,
-                    icon = activity.icon,
                     // A category the user picked wins; otherwise fall back to the guess.
                     category = meta?.category
                         ?.let(AppCategory::fromKey)
@@ -59,11 +61,12 @@ class AppRepository(
                     lastLaunchedAt = meta?.lastLaunchedAt ?: 0,
                     isSystemApp = activity.isSystemApp,
                 )
-            }.sortedBy { it.sortKey }
+            }.sortedWith(AppOrdering.byLabel())
         }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            onPackagesChanged()
             scope.launch { refresh() }
         }
     }
@@ -102,7 +105,6 @@ class AppRepository(
                 activityName = activityInfo.name,
                 label = runCatching { info.loadLabel(packageManager).toString() }
                     .getOrElse { activityInfo.packageName },
-                icon = runCatching { info.loadIcon(packageManager) }.getOrNull(),
                 isSystemApp = isSystemApp,
                 autoCategory = AppCategorizer.categorize(
                     packageName = activityInfo.packageName,
@@ -126,6 +128,17 @@ class AppRepository(
 
     suspend fun setFavorite(app: LauncherApp, favorite: Boolean, dockOrder: Int = app.dockOrder) {
         mutate(app.componentKey) { it.copy(favorite = favorite, dockOrder = dockOrder) }
+    }
+
+    /**
+     * Renumbers the dock from a full ordered list. Rewriting every position
+     * rather than nudging one keeps the order dense, so removing and re-adding
+     * apps cannot leave several of them sharing a position.
+     */
+    suspend fun setDockOrder(componentKeys: List<String>) {
+        componentKeys.forEachIndexed { index, key ->
+            mutate(key) { it.copy(favorite = true, dockOrder = index) }
+        }
     }
 
     suspend fun setHidden(app: LauncherApp, hidden: Boolean) {
@@ -153,7 +166,6 @@ class AppRepository(
         val packageName: String,
         val activityName: String,
         val label: String,
-        val icon: android.graphics.drawable.Drawable?,
         val isSystemApp: Boolean,
         val autoCategory: AppCategory,
     ) {

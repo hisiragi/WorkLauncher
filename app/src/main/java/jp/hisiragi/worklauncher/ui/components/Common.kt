@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,6 +48,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import jp.hisiragi.worklauncher.WorkLauncherApp
+import jp.hisiragi.worklauncher.core.AppIconLoader
 import jp.hisiragi.worklauncher.domain.LauncherApp
 import jp.hisiragi.worklauncher.util.toImageBitmap
 
@@ -143,12 +146,19 @@ fun ColorDot(color: Color, modifier: Modifier = Modifier, size: Dp = 10.dp) {
 
 @Composable
 fun AppIconImage(app: LauncherApp, size: Dp, modifier: Modifier = Modifier) {
-    val bitmap: ImageBitmap? = remember(app.componentKey, app.icon) {
-        app.icon?.let { runCatching { it.toImageBitmap() }.getOrNull() }
+    val loader = rememberAppIconLoader()
+    // Starts from the cache so a scrolled-back item draws without a blank frame.
+    val bitmap: ImageBitmap? by produceState(
+        initialValue = loader.cached(app.componentKey),
+        app.componentKey,
+        loader,
+    ) {
+        if (value == null) value = loader.load(app.packageName, app.activityName)
     }
-    if (bitmap != null) {
+    val icon = bitmap
+    if (icon != null) {
         Image(
-            bitmap = bitmap,
+            bitmap = icon,
             contentDescription = app.label,
             modifier = modifier.size(size),
         )
@@ -305,4 +315,13 @@ fun rememberBatteryStatus(): BatteryStatus {
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
     return status
+}
+
+/** The shared icon cache, reached through the Application's container. */
+@Composable
+fun rememberAppIconLoader(): AppIconLoader {
+    val context = LocalContext.current
+    return remember(context) {
+        (context.applicationContext as WorkLauncherApp).container.appIconLoader
+    }
 }

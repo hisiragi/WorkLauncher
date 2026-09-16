@@ -10,29 +10,49 @@ class SearchSkill(
     private val llm: LlmManager,
     private val webSearch: WebSearch,
 ) {
-    data class Answer(
-        val text: String,
+    /** The prompt to stream, plus what the search turned up for attribution. */
+    data class Plan(
+        val prompt: String,
+        val maxTokens: Int,
         val query: String? = null,
         val sources: List<SearchResult> = emptyList(),
     )
 
-    suspend fun answer(conversation: String, enabled: Boolean): Answer? {
-        val firstPass = llm.generate(firstPassPrompt(conversation, enabled)) ?: return null
-        val query = searchQueryOrNull(firstPass)
-        if (!enabled || query == null) return Answer(firstPass.trim())
-
-        val results = webSearch.search(query)
-        if (results.isEmpty()) {
-            val fallback = llm.generate(noResultsPrompt(conversation, query))
-            return Answer(fallback?.trim() ?: NO_RESULTS_TEXT, query = query)
+    /**
+     * Decides whether the question needs the web before any text is shown. The
+     * deciding call is not streamed because its answer may be discarded; only
+     * the prompt it settles on gets streamed to the user.
+     */
+    suspend fun plan(conversation: String, enabled: Boolean): Plan {
+        if (!enabled) {
+            return Plan(firstPassPrompt(conversation, searchEnabled = false), ANSWER_TOKENS)
         }
 
-        val grounded = llm.generate(secondPassPrompt(conversation, query, results), maxTokens = 700)
-        return Answer(
-            text = grounded?.trim() ?: NO_RESULTS_TEXT,
-            query = query,
-            sources = results,
-        )
+        val decision = llm.generate(decidePrompt(conversation), maxTokens = DECIDE_TOKENS)
+        val query = decision?.let(::searchQueryOrNull)
+            ?: return Plan(firstPassPrompt(conversation, searchEnabled = false), ANSWER_TOKENS)
+
+        val results = webSearch.search(query)
+        return if (results.isEmpty()) {
+            Plan(noResultsPrompt(conversation, query), ANSWER_TOKENS, query = query)
+        } else {
+            Plan(
+                prompt = secondPassPrompt(conversation, query, results),
+                maxTokens = GROUNDED_TOKENS,
+                query = query,
+                sources = results,
+            )
+        }
+    }
+
+    private fun decidePrompt(conversation: String): String = buildString {
+        appendLine("Decide whether answering the user's last message needs current")
+        appendLine("information you do not have — news, prices, schedules, anything that")
+        appendLine("changes. Reply with exactly one line and nothing else:")
+        appendLine("${SEARCH_PREFIX}<what to search for>   if it does")
+        appendLine("NO                                      if it does not")
+        appendLine()
+        append(conversation)
     }
 
     /** Null when the model answered instead of asking for a search. */
@@ -96,6 +116,8 @@ class SearchSkill(
     private companion object {
         const val SEARCH_PREFIX = "SEARCH:"
         const val MAX_SNIPPET_CHARS = 400
-        const val NO_RESULTS_TEXT = "—"
+        const val DECIDE_TOKENS = 48
+        const val ANSWER_TOKENS = 512
+        const val GROUNDED_TOKENS = 700
     }
 }

@@ -76,8 +76,10 @@ class AppContainer(context: Context) {
         QuickContactRepository(appContext, database.quickContactDao())
     }
 
+    val appIconLoader: AppIconLoader by lazy { AppIconLoader(appContext) }
+
     val appRepository: AppRepository by lazy {
-        AppRepository(appContext, database.appMetaDao(), applicationScope)
+        AppRepository(appContext, database.appMetaDao(), applicationScope, appIconLoader::clear)
     }
 
     val calendarRepository: CalendarRepository by lazy { CalendarRepository(appContext) }

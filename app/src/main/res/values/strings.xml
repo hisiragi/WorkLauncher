@@ -355,4 +355,19 @@
     <string name="assistant_stop_voice">録音を終了</string>
     <string name="assistant_recording_direct">録音中… モデルが音声を直接聞き取ります。終了ボタンで送信。</string>
     <string name="assistant_recording_transcribe">録音中… 音声認識で文字にしてから送信します。</string>
+    <string name="dock_add">ドックに追加</string>
+    <string name="dock_remove">ドックから削除</string>
+    <string name="dock_move_right">右へ移動</string>
+    <string name="dock_done_editing">ドックの編集を終了</string>
+    <string name="dock_pick_title">ドックに追加するアプリ</string>
+    <string name="settings_llm_backend_api">API</string>
+    <string name="settings_llm_api_endpoint">APIのベースURL</string>
+    <string name="settings_llm_api_endpoint_hint">https://api.openai.com/v1</string>
+    <string name="settings_llm_api_model">モデル名</string>
+    <string name="settings_llm_api_model_hint">gpt-4o-mini</string>
+    <string name="settings_llm_api_key">APIキー</string>
+    <string name="settings_llm_api_key_hint">sk-…</string>
+    <string name="settings_llm_api_key_reveal">APIキーの表示を切り替え</string>
+    <string name="settings_llm_api_note">OpenAI互換のエンドポイントに対応します。APIキーはこの端末内にのみ保存されます。</string>
+    <string name="assistant_stop_generating">生成を停止</string>
 </resources>

@@ -9,6 +9,7 @@ import jp.hisiragi.worklauncher.domain.ChatSource
 import jp.hisiragi.worklauncher.domain.LlmAvailability
 import jp.hisiragi.worklauncher.service.NotificationCollector
 import java.util.Locale
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +19,7 @@ data class AssistantUiState(
     val messages: List<ChatMessage> = emptyList(),
     val thinking: Boolean = false,
     val searchEnabled: Boolean = true,
+    val streaming: Boolean = false,
     val recording: Boolean = false,
     val voiceAvailable: Boolean = false,
     val modelTakesAudio: Boolean = false,
@@ -30,6 +32,9 @@ data class AssistantUiState(
 class AssistantViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AssistantUiState())
+
+    /** The in-flight answer, so a new question or Stop can cancel it. */
+    private var generation: Job? = null
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
 
     val availability: StateFlow<LlmAvailability> = container.llmManager.availability
@@ -51,28 +56,55 @@ class AssistantViewModel(private val container: AppContainer) : ViewModel() {
 
     fun send(text: String) {
         val trimmed = text.trim()
-        if (trimmed.isEmpty() || _uiState.value.thinking) return
+        if (trimmed.isEmpty() || _uiState.value.thinking || _uiState.value.streaming) return
 
         val history = _uiState.value.messages + ChatMessage(fromUser = true, text = trimmed)
         val useSearch = _uiState.value.searchEnabled
         _uiState.value = _uiState.value.copy(messages = history, thinking = true)
 
-        viewModelScope.launch {
-            val answer = container.searchSkill.answer(promptFor(history), useSearch)
-            _uiState.value = _uiState.value.copy(
-                messages = if (answer != null) {
-                    history + ChatMessage(
-                        fromUser = false,
-                        text = answer.text,
-                        searchQuery = answer.query,
-                        sources = answer.sources.map { ChatSource(it.title, it.url) },
-                    )
-                } else {
-                    history
-                },
-                thinking = false,
+        generation?.cancel()
+        generation = viewModelScope.launch {
+            val plan = container.searchSkill.plan(promptFor(history), useSearch)
+
+            // The empty reply is appended first so the bubble is on screen and
+            // grows as deltas arrive, rather than appearing fully formed at the end.
+            val placeholder = ChatMessage(
+                fromUser = false,
+                text = "",
+                searchQuery = plan.query,
+                sources = plan.sources.map { ChatSource(it.title, it.url) },
             )
+            _uiState.value = _uiState.value.copy(
+                messages = history + placeholder,
+                thinking = false,
+                streaming = true,
+            )
+
+            val answer = StringBuilder()
+            container.llmManager.generateStream(plan.prompt, plan.maxTokens).collect { delta ->
+                answer.append(delta)
+                replaceLastAnswer(placeholder.copy(text = answer.toString()))
+            }
+
+            replaceLastAnswer(placeholder.copy(text = answer.toString().trim()))
+            _uiState.value = _uiState.value.copy(streaming = false)
         }
+    }
+
+    /** Swaps the reply bubble in place while it fills in. */
+    private fun replaceLastAnswer(message: ChatMessage) {
+        val messages = _uiState.value.messages
+        if (messages.isEmpty() || messages.last().fromUser) return
+        _uiState.value = _uiState.value.copy(
+            messages = messages.dropLast(1) + message,
+        )
+    }
+
+    /** Stops an answer mid-flow, keeping whatever has arrived. */
+    fun stopGenerating() {
+        generation?.cancel()
+        generation = null
+        _uiState.value = _uiState.value.copy(thinking = false, streaming = false)
     }
 
     fun setSearchEnabled(enabled: Boolean) {

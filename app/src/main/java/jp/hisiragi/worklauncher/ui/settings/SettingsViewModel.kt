@@ -63,6 +63,9 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setLlmModelPath(path: String) = launch { repo.setLlmModelPath(path) }
     fun setLlmEndpoint(url: String) = launch { repo.setLlmEndpoint(url) }
     fun setLlmRemoteModel(model: String) = launch { repo.setLlmRemoteModel(model) }
+    fun setLlmApiEndpoint(url: String) = launch { repo.setLlmApiEndpoint(url) }
+    fun setLlmApiModel(model: String) = launch { repo.setLlmApiModel(model) }
+    fun setLlmApiKey(key: String) = launch { repo.setLlmApiKey(key) }
 
     val llmAvailability: StateFlow<LlmAvailability> = container.llmManager.availability
 
