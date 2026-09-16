@@ -351,4 +351,8 @@
     <string name="notes_summary">Summary</string>
     <string name="notes_summarize_failed">Could not summarize this note</string>
     <string name="action_open_assistant">Open assistant</string>
+    <string name="assistant_voice">Speak</string>
+    <string name="assistant_stop_voice">Stop recording</string>
+    <string name="assistant_recording_direct">Recording — the model listens to this directly. Tap stop to send.</string>
+    <string name="assistant_recording_transcribe">Recording — this is transcribed before it is sent.</string>
 </resources>

@@ -8,6 +8,7 @@ import jp.hisiragi.worklauncher.domain.ChatMessage
 import jp.hisiragi.worklauncher.domain.ChatSource
 import jp.hisiragi.worklauncher.domain.LlmAvailability
 import jp.hisiragi.worklauncher.service.NotificationCollector
+import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,9 @@ data class AssistantUiState(
     val messages: List<ChatMessage> = emptyList(),
     val thinking: Boolean = false,
     val searchEnabled: Boolean = true,
+    val recording: Boolean = false,
+    val voiceAvailable: Boolean = false,
+    val modelTakesAudio: Boolean = false,
     val digest: String? = null,
     val digestRunning: Boolean = false,
     val notificationCount: Int = 0,
@@ -75,6 +79,59 @@ class AssistantViewModel(private val container: AppContainer) : ViewModel() {
         _uiState.value = _uiState.value.copy(searchEnabled = enabled)
     }
 
+    fun refreshVoiceSupport() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                voiceAvailable = container.voiceInput.hasMicPermission(),
+                modelTakesAudio = container.llmManager.acceptsAudio(),
+            )
+        }
+    }
+
+    /**
+     * An audio-capable model hears the recording itself; anything else needs the
+     * system recognizer to turn it into text first.
+     */
+    fun startVoice() {
+        if (_uiState.value.recording || _uiState.value.thinking) return
+        _uiState.value = _uiState.value.copy(recording = true)
+
+        viewModelScope.launch {
+            if (_uiState.value.modelTakesAudio) {
+                val audio = container.voiceInput.record { !_uiState.value.recording }
+                _uiState.value = _uiState.value.copy(recording = false)
+                if (audio != null) sendAudio(audio)
+            } else {
+                val text = container.voiceInput.transcribe(Locale.getDefault().toLanguageTag())
+                _uiState.value = _uiState.value.copy(recording = false)
+                if (!text.isNullOrBlank()) send(text)
+            }
+        }
+    }
+
+    /** Ends an in-progress recording; the pass above picks the audio up. */
+    fun stopVoice() {
+        _uiState.value = _uiState.value.copy(recording = false)
+    }
+
+    private fun sendAudio(audio: ByteArray) {
+        val history = _uiState.value.messages +
+            ChatMessage(fromUser = true, text = VOICE_PLACEHOLDER)
+        _uiState.value = _uiState.value.copy(messages = history, thinking = true)
+
+        viewModelScope.launch {
+            val reply = container.llmManager.generateWithAudio(AUDIO_PROMPT, audio)
+            _uiState.value = _uiState.value.copy(
+                messages = if (reply != null) {
+                    history + ChatMessage(fromUser = false, text = reply.trim())
+                } else {
+                    history
+                },
+                thinking = false,
+            )
+        }
+    }
+
     fun clearChat() {
         _uiState.value = _uiState.value.copy(messages = emptyList())
     }
@@ -102,5 +159,8 @@ class AssistantViewModel(private val container: AppContainer) : ViewModel() {
 
     private companion object {
         const val MAX_TURNS = 12
+        const val VOICE_PLACEHOLDER = "\uD83C\uDFA4"
+        const val AUDIO_PROMPT =
+            "Listen to the recording and answer the speaker concisely, in their language."
     }
 }

@@ -1,8 +1,11 @@
 package jp.hisiragi.worklauncher.service.llm
 
 import android.content.Context
+import com.google.mediapipe.tasks.genai.llminference.GraphOptions
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import jp.hisiragi.worklauncher.domain.LlmModelCatalog
+import jp.hisiragi.worklauncher.domain.ModelModality
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -40,6 +43,16 @@ class OnDeviceLlmEngine(
     }
 
     override suspend fun generate(prompt: String, maxTokens: Int): String =
+        run(prompt, audio = null)
+
+    /**
+     * Passes a recording straight to the model. Only models built with the audio
+     * modality accept this; [acceptsAudio] says which.
+     */
+    suspend fun generateWithAudio(prompt: String, audio: ByteArray): String =
+        run(prompt, audio)
+
+    private suspend fun run(prompt: String, audio: ByteArray?): String =
         withContext(Dispatchers.Default) {
             mutex.withLock {
                 val engine = ensureLoaded()
@@ -48,14 +61,32 @@ class OnDeviceLlmEngine(
                 val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
                     .setTopK(TOP_K)
                     .setTemperature(TEMPERATURE)
+                    .apply {
+                        if (audio != null) {
+                            setGraphOptions(
+                                GraphOptions.builder().setEnableAudioModality(true).build()
+                            )
+                        }
+                    }
                     .build()
                 LlmInferenceSession.createFromOptions(engine, sessionOptions).use { session ->
                     session.addQueryChunk(prompt)
+                    if (audio != null) {
+                        runCatching { session.addAudio(audio) }.getOrElse {
+                            throw LlmUnavailableException(
+                                it.message ?: "This model does not accept audio"
+                            )
+                        }
+                    }
                     runCatching { session.generateResponse() }
                         .getOrElse { throw LlmUnavailableException(it.message ?: "Generation failed") }
                 }
             }
         }
+
+    /** True when the installed file is a build that takes audio input. */
+    val acceptsAudio: Boolean
+        get() = LlmModelCatalog.byFileName(File(modelPath).name)?.modality == ModelModality.AUDIO
 
     override fun close() {
         runCatching { inference?.close() }

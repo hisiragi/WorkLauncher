@@ -1,5 +1,8 @@
 package jp.hisiragi.worklauncher.ui.assistant
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +26,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,7 +79,19 @@ fun AssistantScreen(
     var draft by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(Unit) { viewModel.refreshNotificationAccess(context) }
+    val micPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.refreshVoiceSupport()
+        if (granted) viewModel.startVoice()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshNotificationAccess(context)
+        viewModel.refreshVoiceSupport()
+    }
+
+    LaunchedEffect(availability) { viewModel.refreshVoiceSupport() }
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
@@ -168,6 +185,22 @@ fun AssistantScreen(
 
                 items(state.messages) { message -> MessageBubble(message) }
 
+                if (state.recording) {
+                    item {
+                        Text(
+                            text = stringResource(
+                                if (state.modelTakesAudio) {
+                                    R.string.assistant_recording_direct
+                                } else {
+                                    R.string.assistant_recording_transcribe
+                                }
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+
                 if (state.thinking) {
                     item {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -207,7 +240,30 @@ fun AssistantScreen(
                     placeholder = { Text(stringResource(R.string.assistant_hint)) },
                     maxLines = 4,
                 )
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
+                IconButton(
+                    onClick = {
+                        when {
+                            state.recording -> viewModel.stopVoice()
+                            state.voiceAvailable -> viewModel.startVoice()
+                            else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    },
+                    enabled = !state.thinking,
+                ) {
+                    Icon(
+                        imageVector = if (state.recording) Icons.Filled.Stop else Icons.Filled.Mic,
+                        contentDescription = stringResource(
+                            if (state.recording) R.string.assistant_stop_voice
+                            else R.string.assistant_voice
+                        ),
+                        tint = if (state.recording) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
                 IconButton(
                     onClick = {
                         viewModel.send(draft)

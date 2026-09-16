@@ -76,6 +76,30 @@ class LlmManager(
         }
     }
 
+    /** True when the active engine takes a recording without transcribing it. */
+    suspend fun acceptsAudio(): Boolean {
+        val current = config.value
+        if (current.availability() !is LlmAvailability.Ready) return false
+        if (current.backend != LlmBackend.ON_DEVICE) return false
+        return runCatching {
+            mutex.withLock { engineFor(current) as? OnDeviceLlmEngine }?.acceptsAudio
+        }.getOrNull() ?: false
+    }
+
+    /** Sends a recording to the model, or null when it cannot take one. */
+    suspend fun generateWithAudio(prompt: String, audio: ByteArray): String? {
+        val current = config.value
+        if (current.availability() !is LlmAvailability.Ready) return null
+        return try {
+            val engine = mutex.withLock { engineFor(current) } as? OnDeviceLlmEngine
+                ?: return null
+            engine.generateWithAudio(prompt, audio).also { lastError.value = null }
+        } catch (e: LlmUnavailableException) {
+            lastError.value = e.message
+            null
+        }
+    }
+
     private fun engineFor(current: LlmConfig): LlmEngine {
         engine?.takeIf { engineKey == current.key }?.let { return it }
         engine?.close()

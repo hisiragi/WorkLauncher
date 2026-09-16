@@ -351,4 +351,8 @@
     <string name="notes_summary">要約</string>
     <string name="notes_summarize_failed">要約できませんでした</string>
     <string name="action_open_assistant">アシスタントを開く</string>
+    <string name="assistant_voice">音声で話す</string>
+    <string name="assistant_stop_voice">録音を終了</string>
+    <string name="assistant_recording_direct">録音中… モデルが音声を直接聞き取ります。終了ボタンで送信。</string>
+    <string name="assistant_recording_transcribe">録音中… 音声認識で文字にしてから送信します。</string>
 </resources>

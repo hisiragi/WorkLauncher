@@ -95,6 +95,8 @@ class MainActivity : ComponentActivity() {
         ACTION_OPEN_FOCUS -> Route.FOCUS
         ACTION_OPEN_TASKS -> Route.TASKS
         ACTION_OPEN_TIME_CARD -> Route.TIME_CARD
+        // Summoned as the device's digital assistant.
+        Intent.ACTION_ASSIST, ACTION_VOICE_COMMAND -> Route.ASSISTANT
         else -> null
     }
 
@@ -113,5 +115,6 @@ class MainActivity : ComponentActivity() {
         const val ACTION_OPEN_FOCUS = "jp.hisiragi.worklauncher.action.OPEN_FOCUS"
         const val ACTION_OPEN_TASKS = "jp.hisiragi.worklauncher.action.OPEN_TASKS"
         const val ACTION_OPEN_TIME_CARD = "jp.hisiragi.worklauncher.action.OPEN_TIME_CARD"
+        private const val ACTION_VOICE_COMMAND = "android.intent.action.VOICE_COMMAND"
     }
 }

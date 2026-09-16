@@ -18,6 +18,7 @@ import jp.hisiragi.worklauncher.service.llm.ModelDownloader
 import jp.hisiragi.worklauncher.service.llm.NoteSummarizer
 import jp.hisiragi.worklauncher.service.llm.NotificationDigest
 import jp.hisiragi.worklauncher.service.llm.SearchSkill
+import jp.hisiragi.worklauncher.service.llm.VoiceInput
 import jp.hisiragi.worklauncher.service.llm.WebSearch
 import jp.hisiragi.worklauncher.service.llm.ReceiptReader
 import kotlinx.coroutines.CoroutineScope
@@ -68,6 +69,8 @@ class AppContainer(context: Context) {
     val noteSummarizer: NoteSummarizer by lazy { NoteSummarizer(llmManager) }
 
     val searchSkill: SearchSkill by lazy { SearchSkill(llmManager, WebSearch()) }
+
+    val voiceInput: VoiceInput by lazy { VoiceInput(appContext) }
 
     val quickContactRepository: QuickContactRepository by lazy {
         QuickContactRepository(appContext, database.quickContactDao())
