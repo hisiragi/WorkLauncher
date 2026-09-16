@@ -360,4 +360,14 @@
     <string name="dock_move_right">右へ移動</string>
     <string name="dock_done_editing">ドックの編集を終了</string>
     <string name="dock_pick_title">ドックに追加するアプリ</string>
+    <string name="settings_llm_backend_api">API</string>
+    <string name="settings_llm_api_endpoint">APIのベースURL</string>
+    <string name="settings_llm_api_endpoint_hint">https://api.openai.com/v1</string>
+    <string name="settings_llm_api_model">モデル名</string>
+    <string name="settings_llm_api_model_hint">gpt-4o-mini</string>
+    <string name="settings_llm_api_key">APIキー</string>
+    <string name="settings_llm_api_key_hint">sk-…</string>
+    <string name="settings_llm_api_key_reveal">APIキーの表示を切り替え</string>
+    <string name="settings_llm_api_note">OpenAI互換のエンドポイントに対応します。APIキーはこの端末内にのみ保存されます。</string>
+    <string name="assistant_stop_generating">生成を停止</string>
 </resources>

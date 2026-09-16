@@ -93,7 +93,7 @@ fun AssistantScreen(
 
     LaunchedEffect(availability) { viewModel.refreshVoiceSupport() }
 
-    LaunchedEffect(state.messages.size) {
+    LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.text?.length) {
         if (state.messages.isNotEmpty()) listState.animateScrollToItem(state.messages.lastIndex)
     }
 
@@ -249,7 +249,7 @@ fun AssistantScreen(
                             else -> micPermission.launch(Manifest.permission.RECORD_AUDIO)
                         }
                     },
-                    enabled = !state.thinking,
+                    enabled = !state.thinking && !state.streaming,
                 ) {
                     Icon(
                         imageVector = if (state.recording) Icons.Filled.Stop else Icons.Filled.Mic,
@@ -264,17 +264,27 @@ fun AssistantScreen(
                         },
                     )
                 }
-                IconButton(
-                    onClick = {
-                        viewModel.send(draft)
-                        draft = ""
-                    },
-                    enabled = draft.isNotBlank() && !state.thinking,
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = stringResource(R.string.assistant_send),
-                    )
+                if (state.streaming) {
+                    IconButton(onClick = viewModel::stopGenerating) {
+                        Icon(
+                            Icons.Filled.Stop,
+                            contentDescription = stringResource(R.string.assistant_stop_generating),
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = {
+                            viewModel.send(draft)
+                            draft = ""
+                        },
+                        enabled = draft.isNotBlank() && !state.thinking,
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = stringResource(R.string.assistant_send),
+                        )
+                    }
                 }
             }
         }

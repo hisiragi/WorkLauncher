@@ -17,6 +17,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -41,6 +43,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -380,6 +384,37 @@ fun SettingsScreen(
                                 onValueChange = viewModel::setLlmRemoteModel,
                             )
                         }
+
+                        LlmBackend.API -> {
+                            Spacer(Modifier.height(8.dp))
+                            TextFieldRow(
+                                label = stringResource(R.string.settings_llm_api_endpoint),
+                                placeholder = stringResource(R.string.settings_llm_api_endpoint_hint),
+                                value = settings.llmApiEndpoint,
+                                onValueChange = viewModel::setLlmApiEndpoint,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            TextFieldRow(
+                                label = stringResource(R.string.settings_llm_api_model),
+                                placeholder = stringResource(R.string.settings_llm_api_model_hint),
+                                value = settings.llmApiModel,
+                                onValueChange = viewModel::setLlmApiModel,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            TextFieldRow(
+                                label = stringResource(R.string.settings_llm_api_key),
+                                placeholder = stringResource(R.string.settings_llm_api_key_hint),
+                                value = settings.llmApiKey,
+                                onValueChange = viewModel::setLlmApiKey,
+                                secret = true,
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = stringResource(R.string.settings_llm_api_note),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
 
                     if (settings.llmBackend != LlmBackend.NONE) {
@@ -511,13 +546,30 @@ private fun TextFieldRow(
     placeholder: String,
     value: String,
     onValueChange: (String) -> Unit,
+    secret: Boolean = false,
 ) {
+    var revealed by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
         placeholder = { Text(placeholder) },
         singleLine = true,
+        visualTransformation = if (secret && !revealed) {
+            PasswordVisualTransformation()
+        } else {
+            VisualTransformation.None
+        },
+        trailingIcon = if (!secret) null else {
+            {
+                IconButton(onClick = { revealed = !revealed }) {
+                    Icon(
+                        imageVector = if (revealed) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = stringResource(R.string.settings_llm_api_key_reveal),
+                    )
+                }
+            }
+        },
         modifier = Modifier.fillMaxWidth(),
     )
 }
@@ -528,6 +580,7 @@ private fun llmBackendLabel(backend: LlmBackend): String = stringResource(
         LlmBackend.NONE -> R.string.settings_llm_backend_none
         LlmBackend.ON_DEVICE -> R.string.settings_llm_backend_on_device
         LlmBackend.REMOTE -> R.string.settings_llm_backend_remote
+        LlmBackend.API -> R.string.settings_llm_backend_api
     }
 )
 

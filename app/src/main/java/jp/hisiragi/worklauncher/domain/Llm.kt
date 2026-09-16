@@ -8,7 +8,10 @@ enum class LlmBackend {
     ON_DEVICE,
 
     /** An OpenAI-compatible server the user runs themselves (Ollama, llama.cpp). */
-    REMOTE;
+    REMOTE,
+
+    /** A hosted provider reached with an API key over the same protocol. */
+    API;
 
     companion object {
         fun fromKey(key: String): LlmBackend =

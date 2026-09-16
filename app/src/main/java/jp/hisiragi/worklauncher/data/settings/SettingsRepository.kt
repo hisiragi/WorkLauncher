@@ -50,9 +50,14 @@ data class LauncherSettings(
     val llmEndpoint: String = "",
     val llmRemoteModel: String = "",
     val llmSummarizeNotifications: Boolean = false,
+    /** Base URL of a hosted OpenAI-compatible provider. */
+    val llmApiEndpoint: String = DEFAULT_API_ENDPOINT,
+    val llmApiModel: String = "",
+    val llmApiKey: String = "",
 ) {
     companion object {
         const val DEFAULT_SEARCH_ENGINE = "https://www.google.com/search?q="
+        const val DEFAULT_API_ENDPOINT = "https://api.openai.com/v1"
     }
 }
 
@@ -91,6 +96,9 @@ class SettingsRepository(private val context: Context) {
             llmEndpoint = prefs[Keys.LLM_ENDPOINT].orEmpty(),
             llmRemoteModel = prefs[Keys.LLM_REMOTE_MODEL].orEmpty(),
             llmSummarizeNotifications = prefs[Keys.LLM_NOTIFICATION_DIGEST] ?: false,
+            llmApiEndpoint = prefs[Keys.LLM_API_ENDPOINT] ?: LauncherSettings.DEFAULT_API_ENDPOINT,
+            llmApiModel = prefs[Keys.LLM_API_MODEL].orEmpty(),
+            llmApiKey = prefs[Keys.LLM_API_KEY].orEmpty(),
         )
     }
 
@@ -122,6 +130,9 @@ class SettingsRepository(private val context: Context) {
     suspend fun setLlmRemoteModel(model: String) = put(Keys.LLM_REMOTE_MODEL, model.trim())
     suspend fun setLlmSummarizeNotifications(enabled: Boolean) =
         put(Keys.LLM_NOTIFICATION_DIGEST, enabled)
+    suspend fun setLlmApiEndpoint(url: String) = put(Keys.LLM_API_ENDPOINT, url.trim())
+    suspend fun setLlmApiModel(model: String) = put(Keys.LLM_API_MODEL, model.trim())
+    suspend fun setLlmApiKey(key: String) = put(Keys.LLM_API_KEY, key.trim())
 
     private suspend fun <T> put(key: Preferences.Key<T>, value: T) {
         context.dataStore.edit { it[key] = value }
@@ -155,5 +166,8 @@ class SettingsRepository(private val context: Context) {
         val LLM_ENDPOINT = stringPreferencesKey("llm_endpoint")
         val LLM_REMOTE_MODEL = stringPreferencesKey("llm_remote_model")
         val LLM_NOTIFICATION_DIGEST = booleanPreferencesKey("llm_notification_digest")
+        val LLM_API_ENDPOINT = stringPreferencesKey("llm_api_endpoint")
+        val LLM_API_MODEL = stringPreferencesKey("llm_api_model")
+        val LLM_API_KEY = stringPreferencesKey("llm_api_key")
     }
 }

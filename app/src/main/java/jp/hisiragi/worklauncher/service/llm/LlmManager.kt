@@ -7,7 +7,9 @@ import jp.hisiragi.worklauncher.domain.LlmAvailability
 import jp.hisiragi.worklauncher.domain.LlmBackend
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -76,6 +78,26 @@ class LlmManager(
         }
     }
 
+    /**
+     * Streams an answer in pieces. Emits nothing when no backend is configured;
+     * a failure surfaces through [error] and ends the flow rather than throwing
+     * into the UI.
+     */
+    fun generateStream(
+        prompt: String,
+        maxTokens: Int = LlmEngine.DEFAULT_MAX_TOKENS,
+    ): Flow<String> = flow {
+        val current = config.value
+        if (current.availability() !is LlmAvailability.Ready) return@flow
+        val active = mutex.withLock { engineFor(current) }
+        try {
+            active.generateStream(prompt, maxTokens).collect { emit(it) }
+            lastError.value = null
+        } catch (e: LlmUnavailableException) {
+            lastError.value = e.message
+        }
+    }
+
     /** True when the active engine takes a recording without transcribing it. */
     suspend fun acceptsAudio(): Boolean {
         val current = config.value
@@ -106,6 +128,11 @@ class LlmManager(
         val created = when (current.backend) {
             LlmBackend.ON_DEVICE -> OnDeviceLlmEngine(context, current.modelPath)
             LlmBackend.REMOTE -> RemoteLlmEngine(current.endpoint, current.remoteModel)
+            LlmBackend.API -> RemoteLlmEngine(
+                baseUrl = current.apiEndpoint,
+                model = current.apiModel,
+                apiKey = current.apiKey,
+            )
             LlmBackend.NONE -> throw LlmUnavailableException("No backend configured")
         }
         engine = created
@@ -118,15 +145,22 @@ class LlmManager(
         val modelPath: String,
         val endpoint: String,
         val remoteModel: String,
+        val apiEndpoint: String,
+        val apiModel: String,
+        val apiKey: String,
     ) {
         constructor(settings: LauncherSettings) : this(
             backend = settings.llmBackend,
             modelPath = settings.llmModelPath,
             endpoint = settings.llmEndpoint,
             remoteModel = settings.llmRemoteModel,
+            apiEndpoint = settings.llmApiEndpoint,
+            apiModel = settings.llmApiModel,
+            apiKey = settings.llmApiKey,
         )
 
-        val key: String get() = "$backend|$modelPath|$endpoint|$remoteModel"
+        val key: String
+            get() = "$backend|$modelPath|$endpoint|$remoteModel|$apiEndpoint|$apiModel|$apiKey"
 
         fun availability(): LlmAvailability = when (backend) {
             LlmBackend.NONE -> LlmAvailability.Disabled
@@ -139,6 +173,12 @@ class LlmManager(
                 endpoint.isBlank() -> LlmAvailability.Unavailable("No endpoint set")
                 remoteModel.isBlank() -> LlmAvailability.Unavailable("No model name set")
                 else -> LlmAvailability.Ready(backend, remoteModel)
+            }
+            LlmBackend.API -> when {
+                apiEndpoint.isBlank() -> LlmAvailability.Unavailable("No endpoint set")
+                apiKey.isBlank() -> LlmAvailability.Unavailable("No API key set")
+                apiModel.isBlank() -> LlmAvailability.Unavailable("No model name set")
+                else -> LlmAvailability.Ready(backend, apiModel)
             }
         }
     }
