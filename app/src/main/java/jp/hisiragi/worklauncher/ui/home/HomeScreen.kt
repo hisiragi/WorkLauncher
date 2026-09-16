@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -82,6 +83,7 @@ import jp.hisiragi.worklauncher.ui.components.SectionCard
 import jp.hisiragi.worklauncher.ui.components.StatTile
 import jp.hisiragi.worklauncher.ui.components.combinedClickableCompat
 import jp.hisiragi.worklauncher.ui.components.rememberBatteryStatus
+import jp.hisiragi.worklauncher.ui.drawer.AppActionsSheet
 import jp.hisiragi.worklauncher.ui.theme.PriorityColors
 import jp.hisiragi.worklauncher.ui.widgets.WidgetPickerSheet
 import jp.hisiragi.worklauncher.ui.widgets.WidgetStack
@@ -104,6 +106,7 @@ fun HomeScreen(
     val gatedApp by viewModel.gatedApp.collectAsStateWithLifecycle()
     val widgetStacks by viewModel.widgetStacks.collectAsStateWithLifecycle()
     val llmAvailability by viewModel.llmAvailability.collectAsStateWithLifecycle()
+    val selectedApp by viewModel.selectedApp.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var editingWidgets by remember { mutableStateOf(false) }
     var pendingClockAction by remember { mutableStateOf<ClockAction?>(null) }
@@ -120,10 +123,12 @@ fun HomeScreen(
         onDispose { viewModel.widgetHost.stopListening() }
     }
 
-    Box(modifier = modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 120.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { ClockHeader(state) }
@@ -206,14 +211,13 @@ fun HomeScreen(
             apps = state.dockApps,
             editing = editingDock,
             onAppClick = { viewModel.launchApp(context, it) },
+            onAppLongClick = viewModel::select,
             onDrawerClick = onOpenDrawer,
             onToggleEditing = { editingDock = !editingDock },
             onRemove = viewModel::removeFromDock,
             onMove = viewModel::moveInDock,
             onAdd = { pickingDockApp = true },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 20.dp),
+            modifier = Modifier.padding(bottom = 20.dp),
         )
     }
 
@@ -236,6 +240,25 @@ fun HomeScreen(
                     ClockAction.BREAK_START, ClockAction.BREAK_END -> viewModel.toggleBreak()
                 }
                 pendingClockAction = null
+            },
+        )
+    }
+
+    selectedApp?.let { app ->
+        AppActionsSheet(
+            app = app,
+            onDismiss = { viewModel.select(null) },
+            onToggleFavorite = {
+                viewModel.removeFromDock(app)
+                viewModel.select(null)
+            },
+            onToggleHidden = { viewModel.toggleHidden(app) },
+            onToggleDistraction = { viewModel.toggleDistraction(app) },
+            onSetCategory = { viewModel.setCategory(app, it) },
+            onRename = { viewModel.rename(app, it) },
+            onEditDock = {
+                editingDock = true
+                viewModel.select(null)
             },
         )
     }
@@ -819,6 +842,7 @@ private fun Dock(
     apps: List<LauncherApp>,
     editing: Boolean,
     onAppClick: (LauncherApp) -> Unit,
+    onAppLongClick: (LauncherApp) -> Unit,
     onDrawerClick: () -> Unit,
     onToggleEditing: () -> Unit,
     onRemove: (LauncherApp) -> Unit,
@@ -847,7 +871,7 @@ private fun Dock(
                                 .clip(RoundedCornerShape(14.dp))
                                 .combinedClickableCompat(
                                     onClick = { if (!editing) onAppClick(app) },
-                                    onLongClick = onToggleEditing,
+                                    onLongClick = { onAppLongClick(app) },
                                 ),
                             contentAlignment = Alignment.Center,
                         ) {

@@ -11,6 +11,7 @@ import jp.hisiragi.worklauncher.data.db.TimeCardEntity
 import jp.hisiragi.worklauncher.data.repo.TimeCardRepository
 import jp.hisiragi.worklauncher.data.settings.LauncherSettings
 import jp.hisiragi.worklauncher.domain.AgendaEvent
+import jp.hisiragi.worklauncher.domain.AppCategory
 import jp.hisiragi.worklauncher.domain.LauncherApp
 import jp.hisiragi.worklauncher.domain.LlmAvailability
 import jp.hisiragi.worklauncher.domain.WorkPlace
@@ -21,6 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -220,6 +222,31 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     fun removeWidget(widget: HomeWidgetEntity) {
         viewModelScope.launch { container.widgetHostController.remove(widget.appWidgetId) }
+    }
+
+    private val _selectedApp = MutableStateFlow<LauncherApp?>(null)
+
+    /** The dock app whose long-press sheet is open. */
+    val selectedApp: StateFlow<LauncherApp?> = _selectedApp.asStateFlow()
+
+    fun select(app: LauncherApp?) {
+        _selectedApp.value = app
+    }
+
+    fun toggleHidden(app: LauncherApp) {
+        viewModelScope.launch { container.appRepository.setHidden(app, !app.hidden) }
+    }
+
+    fun toggleDistraction(app: LauncherApp) {
+        viewModelScope.launch { container.appRepository.setDistraction(app, !app.distraction) }
+    }
+
+    fun setCategory(app: LauncherApp, category: AppCategory) {
+        viewModelScope.launch { container.appRepository.setCategory(app, category) }
+    }
+
+    fun rename(app: LauncherApp, label: String?) {
+        viewModelScope.launch { container.appRepository.setCustomLabel(app, label) }
     }
 
     fun addToDock(app: LauncherApp) {

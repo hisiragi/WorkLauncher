@@ -370,4 +370,6 @@
     <string name="settings_llm_api_key_reveal">APIキーの表示を切り替え</string>
     <string name="settings_llm_api_note">OpenAI互換のエンドポイントに対応します。APIキーはこの端末内にのみ保存されます。</string>
     <string name="assistant_stop_generating">生成を停止</string>
+    <string name="app_action_pinned_hint">ドックに固定中</string>
+    <string name="app_action_edit_dock">ドックの並びを編集</string>
 </resources>
