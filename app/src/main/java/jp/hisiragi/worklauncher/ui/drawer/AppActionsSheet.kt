@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +57,8 @@ fun AppActionsSheet(
     onToggleDistraction: () -> Unit,
     onSetCategory: (AppCategory) -> Unit,
     onRename: (String?) -> Unit,
+    /** Offered only where the dock is on screen. */
+    onEditDock: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -110,9 +114,29 @@ fun AppActionsSheet(
                         )
                     )
                 },
-                leadingContent = { Icon(Icons.Filled.PushPin, contentDescription = null) },
+                supportingContent = if (!app.favorite) null else {
+                    { Text(stringResource(R.string.app_action_pinned_hint)) }
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = if (app.favorite) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                        contentDescription = null,
+                        tint = if (app.favorite) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                },
                 modifier = Modifier.clickableRow { onToggleFavorite() },
             )
+            if (app.favorite && onEditDock != null) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.app_action_edit_dock)) },
+                    leadingContent = { Icon(Icons.Filled.SwapHoriz, contentDescription = null) },
+                    modifier = Modifier.clickableRow(onEditDock),
+                )
+            }
             ListItem(
                 headlineContent = {
                     Text(
