@@ -70,6 +70,8 @@ import jp.hisiragi.worklauncher.domain.AgendaEvent
 import jp.hisiragi.worklauncher.domain.LauncherApp
 import jp.hisiragi.worklauncher.domain.Priority
 import jp.hisiragi.worklauncher.ui.components.AppIconImage
+import jp.hisiragi.worklauncher.ui.components.ClockAction
+import jp.hisiragi.worklauncher.ui.components.ClockConfirmDialog
 import jp.hisiragi.worklauncher.ui.components.EmptyState
 import jp.hisiragi.worklauncher.ui.components.SectionCard
 import jp.hisiragi.worklauncher.ui.components.StatTile
@@ -97,6 +99,7 @@ fun HomeScreen(
     val widgetStacks by viewModel.widgetStacks.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var editingWidgets by remember { mutableStateOf(false) }
+    var pendingClockAction by remember { mutableStateOf<ClockAction?>(null) }
     // Holds the stack a picked widget joins; NEW_STACK starts a fresh one.
     var addingToStack by remember { mutableStateOf<String?>(null) }
 
@@ -133,9 +136,15 @@ fun HomeScreen(
             item {
                 QuickActionRow(
                     state = state,
-                    onClockIn = { viewModel.clockIn() },
-                    onClockOut = viewModel::clockOut,
-                    onToggleBreak = viewModel::toggleBreak,
+                    onClockIn = { pendingClockAction = ClockAction.CLOCK_IN },
+                    onClockOut = { pendingClockAction = ClockAction.CLOCK_OUT },
+                    onToggleBreak = {
+                        pendingClockAction = if (state.onBreak) {
+                            ClockAction.BREAK_END
+                        } else {
+                            ClockAction.BREAK_START
+                        }
+                    },
                     onFocus = {
                         if (state.focus.active) onOpenFocus() else viewModel.startFocus()
                     },
@@ -197,6 +206,21 @@ fun HomeScreen(
             app = app,
             onDismiss = viewModel::dismissGate,
             onConfirm = { viewModel.launchGatedApp(context) },
+        )
+    }
+
+    pendingClockAction?.let { action ->
+        ClockConfirmDialog(
+            action = action,
+            onDismiss = { pendingClockAction = null },
+            onConfirm = {
+                when (action) {
+                    ClockAction.CLOCK_IN -> viewModel.clockIn()
+                    ClockAction.CLOCK_OUT -> viewModel.clockOut()
+                    ClockAction.BREAK_START, ClockAction.BREAK_END -> viewModel.toggleBreak()
+                }
+                pendingClockAction = null
+            },
         )
     }
 

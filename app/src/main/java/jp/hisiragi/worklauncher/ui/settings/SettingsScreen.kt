@@ -61,6 +61,7 @@ import jp.hisiragi.worklauncher.util.TimeUtils
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenModels: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel(factory = AppViewModelFactory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -349,6 +350,12 @@ fun SettingsScreen(
 
                         LlmBackend.ON_DEVICE -> {
                             Spacer(Modifier.height(8.dp))
+                            ListItem(
+                                headlineContent = {
+                                    Text(stringResource(R.string.settings_llm_manage_models))
+                                },
+                                modifier = Modifier.clickable(onClick = onOpenModels),
+                            )
                             TextFieldRow(
                                 label = stringResource(R.string.settings_llm_model_path),
                                 placeholder = stringResource(R.string.settings_llm_model_path_hint),

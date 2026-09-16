@@ -328,4 +328,21 @@
     <string name="settings_llm_open_assistant">Open assistant</string>
     <string name="hub_assistant">Assistant</string>
     <string name="hub_assistant_sub">Local LLM and notification digest</string>
+    <string name="confirm_clock_in">Clock in?</string>
+    <string name="confirm_clock_out">Clock out?</string>
+    <string name="confirm_break_start">Start a break?</string>
+    <string name="confirm_break_end">End the break?</string>
+    <string name="confirm_clock_body">This is recorded on your time card at the current time.</string>
+    <string name="models_title">AI models</string>
+    <string name="models_free_space">%1$s free</string>
+    <string name="models_download">Download</string>
+    <string name="models_pause">Pause</string>
+    <string name="models_use">Use this</string>
+    <string name="models_in_use">In use</string>
+    <string name="models_audio_capable">Accepts audio input</string>
+    <string name="models_confirm_download">This downloads %1$s. Mind your data plan.</string>
+    <string name="models_no_room_title">Not enough space</string>
+    <string name="models_no_room_body">Needs %1$s but only %2$s is free.</string>
+    <string name="models_custom_hint">For a model not listed here, set its path directly in settings.</string>
+    <string name="settings_llm_manage_models">Download a model</string>
 </resources>

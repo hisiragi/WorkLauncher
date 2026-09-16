@@ -14,6 +14,7 @@ import jp.hisiragi.worklauncher.data.repo.UsageRepository
 import jp.hisiragi.worklauncher.data.settings.SettingsRepository
 import jp.hisiragi.worklauncher.service.FocusController
 import jp.hisiragi.worklauncher.service.llm.LlmManager
+import jp.hisiragi.worklauncher.service.llm.ModelDownloader
 import jp.hisiragi.worklauncher.service.llm.NotificationDigest
 import jp.hisiragi.worklauncher.service.llm.ReceiptReader
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +48,10 @@ class AppContainer(context: Context) {
 
     val widgetHostController: WidgetHostController by lazy {
         WidgetHostController(appContext, database.homeWidgetDao())
+    }
+
+    val modelDownloader: ModelDownloader by lazy {
+        ModelDownloader(appContext, applicationScope)
     }
 
     val llmManager: LlmManager by lazy {

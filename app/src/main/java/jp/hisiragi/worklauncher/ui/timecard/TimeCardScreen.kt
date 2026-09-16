@@ -59,6 +59,8 @@ import jp.hisiragi.worklauncher.core.AppViewModelFactory
 import jp.hisiragi.worklauncher.domain.WorkPlace
 import jp.hisiragi.worklauncher.ui.components.EmptyState
 import jp.hisiragi.worklauncher.ui.components.LabeledRow
+import jp.hisiragi.worklauncher.ui.components.ClockAction
+import jp.hisiragi.worklauncher.ui.components.ClockConfirmDialog
 import jp.hisiragi.worklauncher.ui.components.SectionCard
 import jp.hisiragi.worklauncher.ui.components.StatTile
 import jp.hisiragi.worklauncher.util.TimeUtils
@@ -73,6 +75,7 @@ fun TimeCardScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var editingRow by remember { mutableStateOf<TimeCardDayRow?>(null) }
+    var pendingClockAction by remember { mutableStateOf<ClockAction?>(null) }
 
     val csvHeader = listOf(
         stringResource(R.string.csv_date),
@@ -116,7 +119,13 @@ fun TimeCardScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item { TodayCard(state, viewModel) }
+            item {
+                TodayCard(
+                    state = state,
+                    onRequestClockAction = { pendingClockAction = it },
+                    onSetWorkPlace = { viewModel.setWorkPlace(TimeUtils.today(), it) },
+                )
+            }
 
             item {
                 Row(
@@ -212,10 +221,29 @@ fun TimeCardScreen(
             },
         )
     }
+
+    pendingClockAction?.let { action ->
+        ClockConfirmDialog(
+            action = action,
+            onDismiss = { pendingClockAction = null },
+            onConfirm = {
+                when (action) {
+                    ClockAction.CLOCK_IN -> viewModel.clockIn(WorkPlace.OFFICE)
+                    ClockAction.CLOCK_OUT -> viewModel.clockOut()
+                    ClockAction.BREAK_START, ClockAction.BREAK_END -> viewModel.toggleBreak()
+                }
+                pendingClockAction = null
+            },
+        )
+    }
 }
 
 @Composable
-private fun TodayCard(state: TimeCardUiState, viewModel: TimeCardViewModel) {
+private fun TodayCard(
+    state: TimeCardUiState,
+    onRequestClockAction: (ClockAction) -> Unit,
+    onSetWorkPlace: (WorkPlace) -> Unit,
+) {
     SectionCard(title = stringResource(R.string.timecard_today)) {
         LabeledRow(
             label = stringResource(R.string.stat_clock_in),
@@ -242,7 +270,7 @@ private fun TodayCard(state: TimeCardUiState, viewModel: TimeCardViewModel) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (state.clockedIn) {
                 Button(
-                    onClick = viewModel::clockOut,
+                    onClick = { onRequestClockAction(ClockAction.CLOCK_OUT) },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -253,7 +281,13 @@ private fun TodayCard(state: TimeCardUiState, viewModel: TimeCardViewModel) {
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.action_clock_out))
                 }
-                OutlinedButton(onClick = viewModel::toggleBreak) {
+                OutlinedButton(
+                    onClick = {
+                        onRequestClockAction(
+                            if (state.onBreak) ClockAction.BREAK_END else ClockAction.BREAK_START
+                        )
+                    },
+                ) {
                     Icon(Icons.Filled.FreeBreakfast, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text(
@@ -264,7 +298,7 @@ private fun TodayCard(state: TimeCardUiState, viewModel: TimeCardViewModel) {
                 }
             } else {
                 Button(
-                    onClick = { viewModel.clockIn(WorkPlace.OFFICE) },
+                    onClick = { onRequestClockAction(ClockAction.CLOCK_IN) },
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
@@ -279,7 +313,7 @@ private fun TodayCard(state: TimeCardUiState, viewModel: TimeCardViewModel) {
             WorkPlace.entries.forEach { place ->
                 FilterChip(
                     selected = state.today?.workPlace == place.name,
-                    onClick = { viewModel.setWorkPlace(TimeUtils.today(), place) },
+                    onClick = { onSetWorkPlace(place) },
                     enabled = state.today != null,
                     label = { Text(workPlaceLabel(place)) },
                 )
