@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import jp.hisiragi.worklauncher.core.AppContainer
 import jp.hisiragi.worklauncher.domain.ChatMessage
+import jp.hisiragi.worklauncher.domain.ChatSource
 import jp.hisiragi.worklauncher.domain.LlmAvailability
 import jp.hisiragi.worklauncher.service.NotificationCollector
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 data class AssistantUiState(
     val messages: List<ChatMessage> = emptyList(),
     val thinking: Boolean = false,
+    val searchEnabled: Boolean = true,
     val digest: String? = null,
     val digestRunning: Boolean = false,
     val notificationCount: Int = 0,
@@ -48,19 +50,29 @@ class AssistantViewModel(private val container: AppContainer) : ViewModel() {
         if (trimmed.isEmpty() || _uiState.value.thinking) return
 
         val history = _uiState.value.messages + ChatMessage(fromUser = true, text = trimmed)
+        val useSearch = _uiState.value.searchEnabled
         _uiState.value = _uiState.value.copy(messages = history, thinking = true)
 
         viewModelScope.launch {
-            val reply = container.llmManager.generate(promptFor(history))
+            val answer = container.searchSkill.answer(promptFor(history), useSearch)
             _uiState.value = _uiState.value.copy(
-                messages = if (reply != null) {
-                    history + ChatMessage(fromUser = false, text = reply.trim())
+                messages = if (answer != null) {
+                    history + ChatMessage(
+                        fromUser = false,
+                        text = answer.text,
+                        searchQuery = answer.query,
+                        sources = answer.sources.map { ChatSource(it.title, it.url) },
+                    )
                 } else {
                     history
                 },
                 thinking = false,
             )
         }
+    }
+
+    fun setSearchEnabled(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(searchEnabled = enabled)
     }
 
     fun clearChat() {
@@ -82,9 +94,6 @@ class AssistantViewModel(private val container: AppContainer) : ViewModel() {
      * replayed as a single prompt rather than kept in a native session.
      */
     private fun promptFor(history: List<ChatMessage>): String = buildString {
-        appendLine("You are a concise assistant inside a launcher app for working professionals.")
-        appendLine("Answer in the language the user writes in. Keep answers short.")
-        appendLine()
         history.takeLast(MAX_TURNS).forEach { message ->
             appendLine(if (message.fromUser) "User: ${message.text}" else "Assistant: ${message.text}")
         }

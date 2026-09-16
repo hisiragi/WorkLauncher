@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -91,12 +92,14 @@ fun HomeScreen(
     onOpenFocus: () -> Unit,
     onOpenTimeCard: () -> Unit,
     onOpenHub: () -> Unit,
+    onOpenAssistant: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(factory = AppViewModelFactory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val gatedApp by viewModel.gatedApp.collectAsStateWithLifecycle()
     val widgetStacks by viewModel.widgetStacks.collectAsStateWithLifecycle()
+    val llmAvailability by viewModel.llmAvailability.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var editingWidgets by remember { mutableStateOf(false) }
     var pendingClockAction by remember { mutableStateOf<ClockAction?>(null) }
@@ -149,6 +152,8 @@ fun HomeScreen(
                         if (state.focus.active) onOpenFocus() else viewModel.startFocus()
                     },
                     onOpenHub = onOpenHub,
+                    onOpenAssistant = onOpenAssistant,
+                    showAssistant = llmAvailability.isReady,
                 )
             }
 
@@ -397,6 +402,8 @@ private fun QuickActionRow(
     onToggleBreak: () -> Unit,
     onFocus: () -> Unit,
     onOpenHub: () -> Unit,
+    onOpenAssistant: () -> Unit,
+    showAssistant: Boolean,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         if (state.clockedIn) {
@@ -466,6 +473,18 @@ private fun QuickActionRow(
                 contentDescription = stringResource(R.string.action_focus),
                 modifier = Modifier.size(18.dp),
             )
+        }
+        if (showAssistant) {
+            OutlinedButton(
+                onClick = onOpenAssistant,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+            ) {
+                Icon(
+                    Icons.Filled.AutoAwesome,
+                    contentDescription = stringResource(R.string.action_open_assistant),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
         OutlinedButton(
             onClick = onOpenHub,

@@ -1,5 +1,6 @@
 package jp.hisiragi.worklauncher.ui.assistant
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -89,6 +93,21 @@ fun AssistantScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.setSearchEnabled(!state.searchEnabled) }) {
+                        Icon(
+                            imageVector = if (state.searchEnabled) {
+                                Icons.Filled.TravelExplore
+                            } else {
+                                Icons.Filled.SearchOff
+                            },
+                            contentDescription = stringResource(R.string.assistant_toggle_search),
+                            tint = if (state.searchEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
                     if (state.messages.isNotEmpty()) {
                         IconButton(onClick = viewModel::clearChat) {
                             Icon(
@@ -275,6 +294,7 @@ private fun NotificationDigestCard(
 
 @Composable
 private fun MessageBubble(message: ChatMessage) {
+    val context = LocalContext.current
     val alignment = if (message.fromUser) Alignment.CenterEnd else Alignment.CenterStart
     val container = if (message.fromUser) {
         MaterialTheme.colorScheme.primaryContainer
@@ -308,6 +328,27 @@ private fun MessageBubble(message: ChatMessage) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = content,
                 )
+                if (message.sources.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.assistant_sources),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = content.copy(alpha = 0.7f),
+                    )
+                    message.sources.forEachIndexed { index, source ->
+                        Text(
+                            text = "${index + 1}. ${source.title}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = content.copy(alpha = 0.7f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable {
+                                Launch.url(context, source.url)
+                            },
+                        )
+                    }
+                }
             }
         }
     }

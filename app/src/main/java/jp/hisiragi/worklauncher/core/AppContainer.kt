@@ -15,7 +15,10 @@ import jp.hisiragi.worklauncher.data.settings.SettingsRepository
 import jp.hisiragi.worklauncher.service.FocusController
 import jp.hisiragi.worklauncher.service.llm.LlmManager
 import jp.hisiragi.worklauncher.service.llm.ModelDownloader
+import jp.hisiragi.worklauncher.service.llm.NoteSummarizer
 import jp.hisiragi.worklauncher.service.llm.NotificationDigest
+import jp.hisiragi.worklauncher.service.llm.SearchSkill
+import jp.hisiragi.worklauncher.service.llm.WebSearch
 import jp.hisiragi.worklauncher.service.llm.ReceiptReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +64,10 @@ class AppContainer(context: Context) {
     val receiptReader: ReceiptReader by lazy { ReceiptReader(llmManager) }
 
     val notificationDigest: NotificationDigest by lazy { NotificationDigest(llmManager) }
+
+    val noteSummarizer: NoteSummarizer by lazy { NoteSummarizer(llmManager) }
+
+    val searchSkill: SearchSkill by lazy { SearchSkill(llmManager, WebSearch()) }
 
     val quickContactRepository: QuickContactRepository by lazy {
         QuickContactRepository(appContext, database.quickContactDao())

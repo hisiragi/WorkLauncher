@@ -345,4 +345,10 @@
     <string name="models_no_room_body">Needs %1$s but only %2$s is free.</string>
     <string name="models_custom_hint">For a model not listed here, set its path directly in settings.</string>
     <string name="settings_llm_manage_models">Download a model</string>
+    <string name="assistant_toggle_search">Toggle web search</string>
+    <string name="assistant_sources">Sources</string>
+    <string name="notes_summarize">Summarize</string>
+    <string name="notes_summary">Summary</string>
+    <string name="notes_summarize_failed">Could not summarize this note</string>
+    <string name="action_open_assistant">Open assistant</string>
 </resources>

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
@@ -23,10 +24,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -34,8 +37,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -70,6 +75,8 @@ fun NotesScreen(
     viewModel: NotesViewModel = viewModel(factory = AppViewModelFactory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val llmAvailability by viewModel.llmAvailability.collectAsStateWithLifecycle()
+    val summary by viewModel.summary.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<NoteEntity?>(null) }
 
     Scaffold(
@@ -134,7 +141,13 @@ fun NotesScreen(
     editing?.let { note ->
         NoteEditorSheet(
             note = note,
-            onDismiss = { editing = null },
+            canSummarize = llmAvailability.isReady,
+            summary = summary,
+            onSummarize = viewModel::summarize,
+            onDismiss = {
+                editing = null
+                viewModel.clearSummary()
+            },
             onSave = {
                 viewModel.save(it)
                 editing = null
@@ -210,6 +223,9 @@ private fun NoteCard(note: NoteEntity, onClick: () -> Unit, onTogglePin: () -> U
 @Composable
 private fun NoteEditorSheet(
     note: NoteEntity,
+    canSummarize: Boolean,
+    summary: SummaryState,
+    onSummarize: (NoteEntity) -> Unit,
     onDismiss: () -> Unit,
     onSave: (NoteEntity) -> Unit,
     onDelete: (() -> Unit)?,
@@ -276,6 +292,16 @@ private fun NoteEditorSheet(
                     .heightIn(min = 140.dp),
             )
 
+            if (canSummarize) {
+                SummarySection(
+                    summary = summary,
+                    enabled = body.isNotBlank(),
+                    onSummarize = {
+                        onSummarize(note.copy(title = title.trim(), body = body.trim()))
+                    },
+                )
+            }
+
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 NoteColors.indices.forEach { index ->
                     Spacer(
@@ -304,6 +330,66 @@ private fun NoteEditorSheet(
             ) {
                 Text(stringResource(R.string.action_save), fontWeight = FontWeight.SemiBold)
             }
+        }
+    }
+}
+
+@Composable
+private fun SummarySection(
+    summary: SummaryState,
+    enabled: Boolean,
+    onSummarize: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        OutlinedButton(
+            onClick = onSummarize,
+            enabled = enabled && summary !is SummaryState.Running,
+        ) {
+            if (summary is SummaryState.Running) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+            } else {
+                Icon(
+                    Icons.Filled.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(stringResource(R.string.notes_summarize))
+        }
+
+        when (summary) {
+            is SummaryState.Ready -> {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = stringResource(R.string.notes_summary),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = summary.text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            SummaryState.Failed -> Text(
+                text = stringResource(R.string.notes_summarize_failed),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+
+            else -> Unit
         }
     }
 }

@@ -108,6 +108,7 @@ fun WorkLauncherNavHost(
                     onOpenFocus = { navigate(Route.FOCUS) },
                     onOpenTimeCard = { navigate(Route.TIME_CARD) },
                     onOpenHub = { navigate(Route.HUB) },
+                    onOpenAssistant = { navigate(Route.ASSISTANT) },
                 )
             }
         }

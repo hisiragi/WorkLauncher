@@ -345,4 +345,10 @@
     <string name="models_no_room_body">%1$s 必要ですが、空きは %2$s です。</string>
     <string name="models_custom_hint">一覧にないモデルは、設定のモデルファイルのパスに直接指定できます。</string>
     <string name="settings_llm_manage_models">モデルをダウンロード</string>
+    <string name="assistant_toggle_search">Web検索の有効/無効</string>
+    <string name="assistant_sources">参照した検索結果</string>
+    <string name="notes_summarize">AIで要約</string>
+    <string name="notes_summary">要約</string>
+    <string name="notes_summarize_failed">要約できませんでした</string>
+    <string name="action_open_assistant">アシスタントを開く</string>
 </resources>

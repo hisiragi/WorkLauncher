@@ -30,7 +30,12 @@ sealed interface LlmAvailability {
 data class ChatMessage(
     val fromUser: Boolean,
     val text: String,
+    /** Set when the answer came from a web search, for attribution. */
+    val searchQuery: String? = null,
+    val sources: List<ChatSource> = emptyList(),
 )
+
+data class ChatSource(val title: String, val url: String)
 
 /** Fields pulled out of a receipt photo, all optional. */
 data class ReceiptDraft(

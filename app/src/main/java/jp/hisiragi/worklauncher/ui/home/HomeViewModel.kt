@@ -12,6 +12,7 @@ import jp.hisiragi.worklauncher.data.repo.TimeCardRepository
 import jp.hisiragi.worklauncher.data.settings.LauncherSettings
 import jp.hisiragi.worklauncher.domain.AgendaEvent
 import jp.hisiragi.worklauncher.domain.LauncherApp
+import jp.hisiragi.worklauncher.domain.LlmAvailability
 import jp.hisiragi.worklauncher.domain.WorkPlace
 import jp.hisiragi.worklauncher.service.FocusState
 import jp.hisiragi.worklauncher.util.TimeUtils
@@ -192,6 +193,8 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             taskTitle = task?.title.orEmpty(),
         )
     }
+
+    val llmAvailability: StateFlow<LlmAvailability> = container.llmManager.availability
 
     val widgetHost: WidgetHostController get() = container.widgetHostController
 
