@@ -130,6 +130,17 @@ class AppRepository(
         mutate(app.componentKey) { it.copy(favorite = favorite, dockOrder = dockOrder) }
     }
 
+    /**
+     * Renumbers the dock from a full ordered list. Rewriting every position
+     * rather than nudging one keeps the order dense, so removing and re-adding
+     * apps cannot leave several of them sharing a position.
+     */
+    suspend fun setDockOrder(componentKeys: List<String>) {
+        componentKeys.forEachIndexed { index, key ->
+            mutate(key) { it.copy(favorite = true, dockOrder = index) }
+        }
+    }
+
     suspend fun setHidden(app: LauncherApp, hidden: Boolean) {
         mutate(app.componentKey) { it.copy(hidden = hidden) }
     }

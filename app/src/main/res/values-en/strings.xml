@@ -355,4 +355,9 @@
     <string name="assistant_stop_voice">Stop recording</string>
     <string name="assistant_recording_direct">Recording — the model listens to this directly. Tap stop to send.</string>
     <string name="assistant_recording_transcribe">Recording — this is transcribed before it is sent.</string>
+    <string name="dock_add">Add to dock</string>
+    <string name="dock_remove">Remove from dock</string>
+    <string name="dock_move_right">Move right</string>
+    <string name="dock_done_editing">Done editing the dock</string>
+    <string name="dock_pick_title">Add an app to the dock</string>
 </resources>

@@ -44,6 +44,8 @@ data class HomeUiState(
     val focus: FocusState = FocusState(),
     val focusMinutesToday: Int = 0,
     val dockApps: List<LauncherApp> = emptyList(),
+    /** Apps not in the dock, offered when the user adds one. */
+    val dockCandidates: List<LauncherApp> = emptyList(),
     val suggestedApps: List<LauncherApp> = emptyList(),
 ) {
     val clockedIn: Boolean get() = timeCard?.clockInAt != null && timeCard.clockOutAt == null
@@ -136,7 +138,8 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             calendarPermissionGranted = hasCalendar,
             focus = focus,
             focusMinutesToday = focusSeconds / 60,
-            dockApps = visible.filter { it.favorite }.sortedBy { it.dockOrder }.take(8),
+            dockApps = visible.filter { it.favorite }.sortedBy { it.dockOrder }.take(DOCK_CAPACITY),
+            dockCandidates = visible.filterNot { it.favorite },
             suggestedApps = visible
                 .filter { it.launchCount > 0 }
                 .sortedByDescending { it.launchCount }
@@ -219,6 +222,40 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch { container.widgetHostController.remove(widget.appWidgetId) }
     }
 
+    fun addToDock(app: LauncherApp) {
+        val current = uiState.value.dockApps
+        if (current.size >= DOCK_CAPACITY || current.any { it.componentKey == app.componentKey }) return
+        viewModelScope.launch {
+            container.appRepository.setDockOrder(
+                (current + app).map { it.componentKey }
+            )
+        }
+    }
+
+    fun removeFromDock(app: LauncherApp) {
+        viewModelScope.launch {
+            container.appRepository.setFavorite(app, favorite = false, dockOrder = 0)
+            container.appRepository.setDockOrder(
+                uiState.value.dockApps
+                    .filterNot { it.componentKey == app.componentKey }
+                    .map { it.componentKey }
+            )
+        }
+    }
+
+    /** Moves one app along the dock by [delta] slots, clamped to the ends. */
+    fun moveInDock(app: LauncherApp, delta: Int) {
+        val current = uiState.value.dockApps.toMutableList()
+        val from = current.indexOfFirst { it.componentKey == app.componentKey }
+        if (from < 0) return
+        val to = (from + delta).coerceIn(0, current.lastIndex)
+        if (to == from) return
+        current.add(to, current.removeAt(from))
+        viewModelScope.launch {
+            container.appRepository.setDockOrder(current.map { it.componentKey })
+        }
+    }
+
     fun launchApp(context: Context, app: LauncherApp) = container.appLauncher.launch(context, app)
 
     fun launchGatedApp(context: Context) {
@@ -226,6 +263,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun dismissGate() = container.appLauncher.dismissGate()
+
+    companion object {
+        /** Slots beside the drawer button; the row has no room for more. */
+        const val DOCK_CAPACITY = 5
+    }
 
     private data class WorkSlice(
         val settings: LauncherSettings,

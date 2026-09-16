@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.FreeBreakfast
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -39,7 +41,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -103,6 +107,8 @@ fun HomeScreen(
     val context = LocalContext.current
     var editingWidgets by remember { mutableStateOf(false) }
     var pendingClockAction by remember { mutableStateOf<ClockAction?>(null) }
+    var editingDock by remember { mutableStateOf(false) }
+    var pickingDockApp by remember { mutableStateOf(false) }
     // Holds the stack a picked widget joins; NEW_STACK starts a fresh one.
     var addingToStack by remember { mutableStateOf<String?>(null) }
 
@@ -198,8 +204,13 @@ fun HomeScreen(
 
         Dock(
             apps = state.dockApps,
+            editing = editingDock,
             onAppClick = { viewModel.launchApp(context, it) },
             onDrawerClick = onOpenDrawer,
+            onToggleEditing = { editingDock = !editingDock },
+            onRemove = viewModel::removeFromDock,
+            onMove = viewModel::moveInDock,
+            onAdd = { pickingDockApp = true },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 20.dp),
@@ -225,6 +236,17 @@ fun HomeScreen(
                     ClockAction.BREAK_START, ClockAction.BREAK_END -> viewModel.toggleBreak()
                 }
                 pendingClockAction = null
+            },
+        )
+    }
+
+    if (pickingDockApp) {
+        DockAppPicker(
+            candidates = state.dockCandidates,
+            onDismiss = { pickingDockApp = false },
+            onPick = {
+                viewModel.addToDock(it)
+                pickingDockApp = false
             },
         )
     }
@@ -795,8 +817,13 @@ private fun AppStrip(apps: List<LauncherApp>, onClick: (LauncherApp) -> Unit) {
 @Composable
 private fun Dock(
     apps: List<LauncherApp>,
+    editing: Boolean,
     onAppClick: (LauncherApp) -> Unit,
     onDrawerClick: () -> Unit,
+    onToggleEditing: () -> Unit,
+    onRemove: (LauncherApp) -> Unit,
+    onMove: (LauncherApp, Int) -> Unit,
+    onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -807,35 +834,99 @@ private fun Dock(
         shape = RoundedCornerShape(28.dp),
         tonalElevation = 3.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            apps.take(5).forEach { app ->
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                apps.forEachIndexed { index, app ->
+                    Box(contentAlignment = Alignment.TopEnd) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .combinedClickableCompat(
+                                    onClick = { if (!editing) onAppClick(app) },
+                                    onLongClick = onToggleEditing,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AppIconImage(app = app, size = 40.dp)
+                        }
+                        if (editing) {
+                            Box(
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.error)
+                                    .clickable { onRemove(app) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.dock_remove),
+                                    modifier = Modifier.size(12.dp),
+                                    tint = MaterialTheme.colorScheme.onError,
+                                )
+                            }
+                        }
+                    }
+                    if (editing && index < apps.lastIndex) {
+                        Icon(
+                            Icons.Filled.SwapHoriz,
+                            contentDescription = stringResource(R.string.dock_move_right),
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { onMove(app, 1) },
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                if (editing && apps.size < HomeViewModel.DOCK_CAPACITY) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable(onClick = onAdd),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.dock_add),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .combinedClickableCompat(onClick = { onAppClick(app) }),
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .combinedClickableCompat(
+                            onClick = onDrawerClick,
+                            onLongClick = onToggleEditing,
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    AppIconImage(app = app, size = 40.dp)
+                    Icon(
+                        imageVector = Icons.Filled.Apps,
+                        contentDescription = stringResource(R.string.home_all_apps),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
                 }
             }
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .clickable(onClick = onDrawerClick),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Apps,
-                    contentDescription = stringResource(R.string.home_all_apps),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
+
+            if (editing) {
+                Spacer(Modifier.height(4.dp))
+                TextButton(onClick = onToggleEditing, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.dock_done_editing),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
             }
         }
     }
@@ -855,4 +946,40 @@ fun FocusGateDialog(app: LauncherApp, onDismiss: () -> Unit, onConfirm: () -> Un
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.focus_gate_stay)) }
         },
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DockAppPicker(
+    candidates: List<LauncherApp>,
+    onDismiss: () -> Unit,
+    onPick: (LauncherApp) -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = stringResource(R.string.dock_pick_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+        LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
+            items(candidates, key = { it.componentKey }) { app ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPick(app) }
+                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AppIconImage(app = app, size = 36.dp)
+                    Spacer(Modifier.width(14.dp))
+                    Text(
+                        text = app.label,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
 }

@@ -355,4 +355,9 @@
     <string name="assistant_stop_voice">録音を終了</string>
     <string name="assistant_recording_direct">録音中… モデルが音声を直接聞き取ります。終了ボタンで送信。</string>
     <string name="assistant_recording_transcribe">録音中… 音声認識で文字にしてから送信します。</string>
+    <string name="dock_add">ドックに追加</string>
+    <string name="dock_remove">ドックから削除</string>
+    <string name="dock_move_right">右へ移動</string>
+    <string name="dock_done_editing">ドックの編集を終了</string>
+    <string name="dock_pick_title">ドックに追加するアプリ</string>
 </resources>
