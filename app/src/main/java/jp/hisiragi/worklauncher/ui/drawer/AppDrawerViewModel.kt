@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import jp.hisiragi.worklauncher.core.AppContainer
 import jp.hisiragi.worklauncher.data.settings.LauncherSettings
 import jp.hisiragi.worklauncher.domain.AppCategory
+import jp.hisiragi.worklauncher.domain.AppOrdering
 import jp.hisiragi.worklauncher.domain.DrawerSort
 import jp.hisiragi.worklauncher.domain.LauncherApp
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,16 +57,10 @@ class AppDrawerViewModel(private val container: AppContainer) : ViewModel() {
             query = q,
             categoryFilter = category,
             showHidden = includeHidden,
-            apps = filtered.sortedWith(sortComparator(settings.drawerSort)),
+            apps = filtered.sortedWith(AppOrdering.forSort(settings.drawerSort)),
             totalCount = visible.size,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDrawerUiState())
-
-    private fun sortComparator(sort: DrawerSort): Comparator<LauncherApp> = when (sort) {
-        DrawerSort.ALPHABETICAL -> compareBy { it.sortKey }
-        DrawerSort.MOST_USED -> compareByDescending<LauncherApp> { it.launchCount }.thenBy { it.sortKey }
-        DrawerSort.RECENT -> compareByDescending<LauncherApp> { it.lastLaunchedAt }.thenBy { it.sortKey }
-    }
 
     fun setQuery(value: String) {
         query.value = value

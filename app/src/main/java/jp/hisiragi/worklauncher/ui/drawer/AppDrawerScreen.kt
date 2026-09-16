@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -76,6 +78,13 @@ fun AppDrawerScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     var sortMenuOpen by remember { mutableStateOf(false) }
+    val gridState = rememberLazyGridState()
+
+    // Reordering keeps the grid anchored to whatever item was on top, which
+    // lands the user mid-list and reads as the sort not having applied.
+    LaunchedEffect(state.settings.drawerSort, state.categoryFilter, state.query) {
+        gridState.scrollToItem(0)
+    }
 
     LaunchedEffect(startWithKeyboard) {
         if (startWithKeyboard) {
@@ -109,6 +118,15 @@ fun AppDrawerScreen(
                             DrawerSort.entries.forEach { sort ->
                                 DropdownMenuItem(
                                     text = { Text(sortLabel(sort)) },
+                                    leadingIcon = {
+                                        if (sort == state.settings.drawerSort) {
+                                            Icon(
+                                                Icons.Filled.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
+                                    },
                                     onClick = {
                                         viewModel.setSort(sort)
                                         sortMenuOpen = false
@@ -200,6 +218,7 @@ fun AppDrawerScreen(
                 }
             } else {
                 LazyVerticalGrid(
+                    state = gridState,
                     columns = GridCells.Fixed(state.settings.gridColumns),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.fillMaxSize(),

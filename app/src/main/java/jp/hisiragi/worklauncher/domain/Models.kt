@@ -1,6 +1,5 @@
 package jp.hisiragi.worklauncher.domain
 
-import android.graphics.drawable.Drawable
 
 /** Priority buckets shown on the task board. */
 enum class Priority(val level: Int) {
@@ -53,7 +52,6 @@ data class LauncherApp(
     val packageName: String,
     val activityName: String,
     val label: String,
-    val icon: Drawable?,
     val category: AppCategory = AppCategory.UNSORTED,
     val hidden: Boolean = false,
     val favorite: Boolean = false,
