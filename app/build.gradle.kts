@@ -1,9 +1,35 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// Signing material comes from keystore.properties (local, git-ignored) or from
+// the environment (CI). Absent both, the release build stays unsigned rather
+// than failing, so a plain `assembleRelease` still works for a contributor.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun signingValue(key: String, envName: String): String? =
+    keystoreProperties.getProperty(key) ?: System.getenv(envName)
+
+val releaseStoreFile = signingValue("storeFile", "SIGNING_STORE_FILE")
+val releaseStorePassword = signingValue("storePassword", "SIGNING_STORE_PASSWORD")
+val releaseKeyAlias = signingValue("keyAlias", "SIGNING_KEY_ALIAS")
+val releaseKeyPassword = signingValue("keyPassword", "SIGNING_KEY_PASSWORD")
+val hasReleaseSigning = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() } && rootProject.file(releaseStoreFile!!).exists()
 
 android {
     namespace = "jp.hisiragi.worklauncher"
@@ -18,6 +44,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -27,6 +66,19 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release")
+        }
+    }
+
+    // The on-device LLM runtime ships ~26MB of native code per ABI, so a
+    // universal APK would carry four copies. One APK per real-device ABI keeps
+    // each download to roughly a third of that; x86 is emulator-only.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
         }
     }
 
@@ -84,6 +136,13 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     implementation(libs.androidx.datastore.preferences)
+
+    // On-device LLM runtime. Idle unless the user installs a model file.
+    implementation(libs.mediapipe.tasks.genai)
+
+    // Offline OCR, so a text-only model can still read a receipt photo.
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.text.recognition.japanese)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

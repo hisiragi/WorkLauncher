@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import jp.hisiragi.worklauncher.core.AppContainer
 import jp.hisiragi.worklauncher.data.settings.LauncherSettings
 import jp.hisiragi.worklauncher.domain.DrawerSort
+import jp.hisiragi.worklauncher.domain.LlmAvailability
+import jp.hisiragi.worklauncher.domain.LlmBackend
 import jp.hisiragi.worklauncher.domain.LauncherApp
 import jp.hisiragi.worklauncher.domain.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
@@ -57,6 +59,12 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setShowTasksCard(show: Boolean) = launch { repo.setShowTasksCard(show) }
     fun setSearchEngine(url: String) = launch { repo.setSearchEngineUrl(url) }
     fun setCurrencySymbol(symbol: String) = launch { repo.setCurrencySymbol(symbol) }
+    fun setLlmBackend(backend: LlmBackend) = launch { repo.setLlmBackend(backend) }
+    fun setLlmModelPath(path: String) = launch { repo.setLlmModelPath(path) }
+    fun setLlmEndpoint(url: String) = launch { repo.setLlmEndpoint(url) }
+    fun setLlmRemoteModel(model: String) = launch { repo.setLlmRemoteModel(model) }
+
+    val llmAvailability: StateFlow<LlmAvailability> = container.llmManager.availability
 
     fun toggleWorkDay(dayIndex: Int) = launch {
         val current = uiState.value.settings.workDayMask

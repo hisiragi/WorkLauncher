@@ -46,7 +46,11 @@ class AppRepository(
                     activityName = activity.activityName,
                     label = meta?.customLabel?.takeIf { it.isNotBlank() } ?: activity.label,
                     icon = activity.icon,
-                    category = AppCategory.fromKey(meta?.category ?: AppCategory.UNSORTED.name),
+                    // A category the user picked wins; otherwise fall back to the guess.
+                    category = meta?.category
+                        ?.let(AppCategory::fromKey)
+                        ?.takeIf { it != AppCategory.UNSORTED }
+                        ?: activity.autoCategory,
                     hidden = meta?.hidden ?: false,
                     favorite = meta?.favorite ?: false,
                     dockOrder = meta?.dockOrder ?: 0,
@@ -91,13 +95,20 @@ class AppRepository(
             val activityInfo = info.activityInfo ?: return@mapNotNull null
             // The launcher never lists itself: tapping it from the drawer is a no-op.
             if (activityInfo.packageName == context.packageName) return@mapNotNull null
+            val appInfo = activityInfo.applicationInfo
+            val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             InstalledActivity(
                 packageName = activityInfo.packageName,
                 activityName = activityInfo.name,
                 label = runCatching { info.loadLabel(packageManager).toString() }
                     .getOrElse { activityInfo.packageName },
                 icon = runCatching { info.loadIcon(packageManager) }.getOrNull(),
-                isSystemApp = (activityInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
+                isSystemApp = isSystemApp,
+                autoCategory = AppCategorizer.categorize(
+                    packageName = activityInfo.packageName,
+                    systemCategory = appInfo.category,
+                    isSystemApp = isSystemApp,
+                ),
             )
         }.distinctBy { it.componentKey }
     }
@@ -144,6 +155,7 @@ class AppRepository(
         val label: String,
         val icon: android.graphics.drawable.Drawable?,
         val isSystemApp: Boolean,
+        val autoCategory: AppCategory,
     ) {
         val componentKey: String get() = "$packageName/$activityName"
     }

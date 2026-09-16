@@ -1,8 +1,11 @@
 package jp.hisiragi.worklauncher.ui.theme
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 // A calm, desk-friendly palette: deep navy for chrome, amber for the timer,
 // and a restrained green for anything "done".
@@ -82,7 +85,7 @@ val PriorityColors = listOf(
     Color(0xFFD1453B),
 )
 
-/** Background tints available to notes. */
+/** Background tints available to notes, as shown on a light surface. */
 val NoteColors = listOf(
     Color(0xFFFFF3C4),
     Color(0xFFD7EAFB),
@@ -91,3 +94,32 @@ val NoteColors = listOf(
     Color(0xFFE8DDF7),
     Color(0xFFEDEDED),
 )
+
+/** The same hues darkened so light text stays legible on them. */
+val DarkNoteColors = listOf(
+    Color(0xFF473B16),
+    Color(0xFF17364F),
+    Color(0xFF17402C),
+    Color(0xFF4B2424),
+    Color(0xFF332A4B),
+    Color(0xFF2E3238),
+)
+
+/** A note's card background paired with the text color that reads on it. */
+data class NoteTint(val container: Color, val content: Color)
+
+@Composable
+fun noteTint(colorIndex: Int): NoteTint {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    return if (dark) {
+        NoteTint(
+            container = DarkNoteColors[colorIndex.coerceIn(DarkNoteColors.indices)],
+            content = Color(0xFFECEDF1),
+        )
+    } else {
+        NoteTint(
+            container = NoteColors[colorIndex.coerceIn(NoteColors.indices)].copy(alpha = 0.55f),
+            content = Color(0xFF121417),
+        )
+    }
+}

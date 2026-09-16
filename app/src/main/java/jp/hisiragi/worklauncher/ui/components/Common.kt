@@ -31,7 +31,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -272,17 +272,28 @@ fun PermissionBanner(
     }
 }
 
-/** Current battery percentage, kept in sync with the sticky battery broadcast. */
+/** Battery percentage, or -1 before the first broadcast arrives. */
+data class BatteryStatus(val level: Int = -1, val charging: Boolean = false) {
+    val known: Boolean get() = level >= 0
+}
+
+/** Current battery state, kept in sync with the sticky battery broadcast. */
 @Composable
-fun rememberBatteryLevel(): Int {
+fun rememberBatteryStatus(): BatteryStatus {
     val context = LocalContext.current
-    var level by remember { mutableIntStateOf(-1) }
+    var status by remember { mutableStateOf(BatteryStatus()) }
     DisposableEffect(context) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 val raw = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
                 val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-                if (raw >= 0 && scale > 0) level = raw * 100 / scale
+                val plugState = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+                val charging = plugState == BatteryManager.BATTERY_STATUS_CHARGING ||
+                    plugState == BatteryManager.BATTERY_STATUS_FULL
+                status = BatteryStatus(
+                    level = if (raw >= 0 && scale > 0) raw * 100 / scale else status.level,
+                    charging = charging,
+                )
             }
         }
         ContextCompat.registerReceiver(
@@ -293,5 +304,5 @@ fun rememberBatteryLevel(): Int {
         )
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
-    return level
+    return status
 }

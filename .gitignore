@@ -13,6 +13,7 @@ captures/
 # Keystores and signing material
 *.jks
 *.keystore
+keystore.properties
 
 # OS noise
 .DS_Store

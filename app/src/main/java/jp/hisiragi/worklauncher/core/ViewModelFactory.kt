@@ -6,11 +6,13 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import jp.hisiragi.worklauncher.WorkLauncherApp
 import jp.hisiragi.worklauncher.ui.agenda.AgendaViewModel
+import jp.hisiragi.worklauncher.ui.assistant.AssistantViewModel
 import jp.hisiragi.worklauncher.ui.contacts.ContactsViewModel
 import jp.hisiragi.worklauncher.ui.drawer.AppDrawerViewModel
 import jp.hisiragi.worklauncher.ui.expense.ExpenseViewModel
 import jp.hisiragi.worklauncher.ui.focus.FocusViewModel
 import jp.hisiragi.worklauncher.ui.home.HomeViewModel
+import jp.hisiragi.worklauncher.ui.models.ModelManagerViewModel
 import jp.hisiragi.worklauncher.ui.notes.NotesViewModel
 import jp.hisiragi.worklauncher.ui.settings.SettingsViewModel
 import jp.hisiragi.worklauncher.ui.tasks.TasksViewModel
@@ -32,5 +34,7 @@ val AppViewModelFactory = viewModelFactory {
     initializer { ContactsViewModel(container()) }
     initializer { UsageViewModel(container()) }
     initializer { ExpenseViewModel(container()) }
+    initializer { AssistantViewModel(container()) }
+    initializer { ModelManagerViewModel(container()) }
     initializer { SettingsViewModel(container()) }
 }

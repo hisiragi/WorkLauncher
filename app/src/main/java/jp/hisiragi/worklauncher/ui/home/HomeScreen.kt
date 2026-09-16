@@ -18,7 +18,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.BatteryStd
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
@@ -42,8 +45,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,17 +64,23 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import jp.hisiragi.worklauncher.R
 import jp.hisiragi.worklauncher.core.AppViewModelFactory
+import jp.hisiragi.worklauncher.core.WidgetHostController
+import jp.hisiragi.worklauncher.data.db.HomeWidgetEntity
 import jp.hisiragi.worklauncher.data.db.TaskEntity
 import jp.hisiragi.worklauncher.domain.AgendaEvent
 import jp.hisiragi.worklauncher.domain.LauncherApp
 import jp.hisiragi.worklauncher.domain.Priority
 import jp.hisiragi.worklauncher.ui.components.AppIconImage
+import jp.hisiragi.worklauncher.ui.components.ClockAction
+import jp.hisiragi.worklauncher.ui.components.ClockConfirmDialog
 import jp.hisiragi.worklauncher.ui.components.EmptyState
 import jp.hisiragi.worklauncher.ui.components.SectionCard
 import jp.hisiragi.worklauncher.ui.components.StatTile
 import jp.hisiragi.worklauncher.ui.components.combinedClickableCompat
-import jp.hisiragi.worklauncher.ui.components.rememberBatteryLevel
+import jp.hisiragi.worklauncher.ui.components.rememberBatteryStatus
 import jp.hisiragi.worklauncher.ui.theme.PriorityColors
+import jp.hisiragi.worklauncher.ui.widgets.WidgetPickerSheet
+import jp.hisiragi.worklauncher.ui.widgets.WidgetStack
 import jp.hisiragi.worklauncher.util.TimeUtils
 
 @Composable
@@ -79,14 +92,27 @@ fun HomeScreen(
     onOpenFocus: () -> Unit,
     onOpenTimeCard: () -> Unit,
     onOpenHub: () -> Unit,
+    onOpenAssistant: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel(factory = AppViewModelFactory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val gatedApp by viewModel.gatedApp.collectAsStateWithLifecycle()
+    val widgetStacks by viewModel.widgetStacks.collectAsStateWithLifecycle()
+    val llmAvailability by viewModel.llmAvailability.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var editingWidgets by remember { mutableStateOf(false) }
+    var pendingClockAction by remember { mutableStateOf<ClockAction?>(null) }
+    // Holds the stack a picked widget joins; NEW_STACK starts a fresh one.
+    var addingToStack by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { viewModel.refreshAgenda() }
+
+    // The host only receives provider updates while the home screen is visible.
+    DisposableEffect(Unit) {
+        viewModel.widgetHost.startListening()
+        onDispose { viewModel.widgetHost.stopListening() }
+    }
 
     Box(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
@@ -99,15 +125,35 @@ fun HomeScreen(
             item { SearchRow(onClick = onOpenSearch) }
 
             item {
+                WidgetSection(
+                    stacks = widgetStacks,
+                    controller = viewModel.widgetHost,
+                    editing = editingWidgets,
+                    onToggleEditing = { editingWidgets = !editingWidgets },
+                    onAddStack = { addingToStack = NEW_STACK },
+                    onAddToStack = { stackId -> addingToStack = stackId },
+                    onRemove = viewModel::removeWidget,
+                )
+            }
+
+            item {
                 QuickActionRow(
                     state = state,
-                    onClockIn = { viewModel.clockIn() },
-                    onClockOut = viewModel::clockOut,
-                    onToggleBreak = viewModel::toggleBreak,
+                    onClockIn = { pendingClockAction = ClockAction.CLOCK_IN },
+                    onClockOut = { pendingClockAction = ClockAction.CLOCK_OUT },
+                    onToggleBreak = {
+                        pendingClockAction = if (state.onBreak) {
+                            ClockAction.BREAK_END
+                        } else {
+                            ClockAction.BREAK_START
+                        }
+                    },
                     onFocus = {
                         if (state.focus.active) onOpenFocus() else viewModel.startFocus()
                     },
                     onOpenHub = onOpenHub,
+                    onOpenAssistant = onOpenAssistant,
+                    showAssistant = llmAvailability.isReady,
                 )
             }
 
@@ -167,11 +213,96 @@ fun HomeScreen(
             onConfirm = { viewModel.launchGatedApp(context) },
         )
     }
+
+    pendingClockAction?.let { action ->
+        ClockConfirmDialog(
+            action = action,
+            onDismiss = { pendingClockAction = null },
+            onConfirm = {
+                when (action) {
+                    ClockAction.CLOCK_IN -> viewModel.clockIn()
+                    ClockAction.CLOCK_OUT -> viewModel.clockOut()
+                    ClockAction.BREAK_START, ClockAction.BREAK_END -> viewModel.toggleBreak()
+                }
+                pendingClockAction = null
+            },
+        )
+    }
+
+    addingToStack?.let { target ->
+        WidgetPickerSheet(
+            controller = viewModel.widgetHost,
+            onDismiss = { addingToStack = null },
+            onPicked = { appWidgetId, heightDp ->
+                viewModel.addWidget(
+                    appWidgetId = appWidgetId,
+                    heightDp = heightDp,
+                    stackId = target.takeIf { it != NEW_STACK },
+                )
+                addingToStack = null
+            },
+        )
+    }
+}
+
+/** Sentinel for "put this widget in a stack of its own". */
+private const val NEW_STACK = ""
+
+@Composable
+private fun WidgetSection(
+    stacks: List<List<HomeWidgetEntity>>,
+    controller: WidgetHostController,
+    editing: Boolean,
+    onToggleEditing: () -> Unit,
+    onAddStack: () -> Unit,
+    onAddToStack: (String) -> Unit,
+    onRemove: (HomeWidgetEntity) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        stacks.forEach { stack ->
+            WidgetStack(
+                widgets = stack,
+                controller = controller,
+                editing = editing,
+                onAddToStack = { onAddToStack(stack.first().stackId) },
+                onRemove = onRemove,
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (stacks.isEmpty() || editing) {
+                OutlinedButton(
+                    onClick = onAddStack,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.widget_add), style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            if (stacks.isNotEmpty()) {
+                TextButton(onClick = onToggleEditing) {
+                    Text(
+                        stringResource(
+                            if (editing) R.string.widget_done_editing else R.string.widget_edit
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun ClockHeader(state: HomeUiState) {
-    val battery = rememberBatteryLevel()
+    val battery = rememberBatteryStatus()
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = TimeUtils.formatTime(state.nowMillis, state.settings.use24HourClock),
@@ -185,17 +316,28 @@ private fun ClockHeader(state: HomeUiState) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.width(12.dp))
-            if (battery >= 0) {
+            if (battery.known) {
+                val batteryTint = if (battery.charging) {
+                    MaterialTheme.colorScheme.secondary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 Icon(
-                    imageVector = Icons.Filled.BatteryStd,
-                    contentDescription = stringResource(R.string.home_battery),
+                    imageVector = if (battery.charging) {
+                        Icons.Filled.BatteryChargingFull
+                    } else {
+                        Icons.Filled.BatteryStd
+                    },
+                    contentDescription = stringResource(
+                        if (battery.charging) R.string.home_battery_charging else R.string.home_battery
+                    ),
                     modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = batteryTint,
                 )
                 Text(
-                    text = "$battery%",
+                    text = "${battery.level}%",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = batteryTint,
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -260,6 +402,8 @@ private fun QuickActionRow(
     onToggleBreak: () -> Unit,
     onFocus: () -> Unit,
     onOpenHub: () -> Unit,
+    onOpenAssistant: () -> Unit,
+    showAssistant: Boolean,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         if (state.clockedIn) {
@@ -276,17 +420,37 @@ private fun QuickActionRow(
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.action_clock_out), maxLines = 1)
             }
-            OutlinedButton(
-                onClick = onToggleBreak,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-            ) {
-                Icon(
-                    Icons.Filled.FreeBreakfast,
-                    contentDescription = stringResource(
-                        if (state.onBreak) R.string.action_break_end else R.string.action_break_start
+            val breakLabel = stringResource(
+                if (state.onBreak) R.string.action_break_end else R.string.action_break_start
+            )
+            if (state.onBreak) {
+                Button(
+                    onClick = onToggleBreak,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary,
                     ),
-                    modifier = Modifier.size(18.dp),
-                )
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.FreeBreakfast,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(breakLabel, maxLines = 1)
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onToggleBreak,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.FreeBreakfast,
+                        contentDescription = breakLabel,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         } else {
             Button(
@@ -309,6 +473,18 @@ private fun QuickActionRow(
                 contentDescription = stringResource(R.string.action_focus),
                 modifier = Modifier.size(18.dp),
             )
+        }
+        if (showAssistant) {
+            OutlinedButton(
+                onClick = onOpenAssistant,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
+            ) {
+                Icon(
+                    Icons.Filled.AutoAwesome,
+                    contentDescription = stringResource(R.string.action_open_assistant),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
         OutlinedButton(
             onClick = onOpenHub,
@@ -406,6 +582,36 @@ private fun WorkSummaryCard(state: HomeUiState, onOpenTimeCard: () -> Unit) {
                     MaterialTheme.colorScheme.secondary
                 },
             )
+        }
+        if (state.onBreak) {
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FreeBreakfast,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.home_on_break_for,
+                            TimeUtils.formatDuration(state.currentBreakMinutes),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+            }
         }
         val remaining = state.settings.standardWorkMinutes - state.workedMinutes
         if (state.clockedIn && remaining > 0) {

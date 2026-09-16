@@ -102,6 +102,16 @@ object Launch {
     fun notificationPolicySettings(context: Context) {
         context.startActivitySafely(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
     }
+
+    fun url(context: Context, url: String) {
+        context.startActivitySafely(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }
+
+    fun notificationListenerSettings(context: Context) {
+        context.startActivitySafely(
+            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        )
+    }
 }
 
 object LauncherStatus {
