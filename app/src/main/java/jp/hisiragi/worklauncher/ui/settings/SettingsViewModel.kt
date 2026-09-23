@@ -8,6 +8,8 @@ import jp.hisiragi.worklauncher.domain.DrawerSort
 import jp.hisiragi.worklauncher.domain.LlmAvailability
 import jp.hisiragi.worklauncher.domain.LlmBackend
 import jp.hisiragi.worklauncher.domain.LauncherApp
+import jp.hisiragi.worklauncher.domain.SearchEngineHelper
+import jp.hisiragi.worklauncher.domain.SearchEngineType
 import jp.hisiragi.worklauncher.domain.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +60,21 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     fun setShowAgendaCard(show: Boolean) = launch { repo.setShowAgendaCard(show) }
     fun setShowTasksCard(show: Boolean) = launch { repo.setShowTasksCard(show) }
     fun setSearchEngine(url: String) = launch { repo.setSearchEngineUrl(url) }
+    fun selectSearchEngine(type: SearchEngineType) = launch {
+        if (type == SearchEngineType.CUSTOM) {
+            val customUrl = uiState.value.settings.customSearchEngineUrl.ifBlank {
+                SearchEngineHelper.DEFAULT_CUSTOM_URL
+            }
+            repo.setCustomSearchEngineUrl(customUrl)
+            repo.setSearchEngineUrl(customUrl)
+        } else {
+            repo.setSearchEngineUrl(type.defaultUrl)
+        }
+    }
+    fun setCustomSearchEngine(url: String) = launch {
+        repo.setCustomSearchEngineUrl(url)
+        repo.setSearchEngineUrl(url)
+    }
     fun setCurrencySymbol(symbol: String) = launch { repo.setCurrencySymbol(symbol) }
     fun setLlmBackend(backend: LlmBackend) = launch { repo.setLlmBackend(backend) }
     fun setLlmModelPath(path: String) = launch { repo.setLlmModelPath(path) }

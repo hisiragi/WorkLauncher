@@ -87,8 +87,12 @@
     <string name="drawer_sort_usage">使用回数順</string>
     <string name="drawer_title_count">アプリ (%1$d)</string>
     <string name="engine_bing">Bing</string>
+    <string name="engine_brave">Brave</string>
+    <string name="engine_custom">カスタム</string>
     <string name="engine_duckduckgo">DuckDuckGo</string>
     <string name="engine_google">Google</string>
+    <string name="engine_startpage">Startpage</string>
+    <string name="engine_yahoo_japan">Yahoo! JAPAN</string>
     <string name="error_no_handler">この操作を実行できるアプリがありません</string>
     <string name="expense_add">経費を追加</string>
     <string name="expense_category_accommodation">宿泊費</string>
@@ -206,6 +210,9 @@
     <string name="settings_not_granted">未許可</string>
     <string name="settings_remove_from_dock">ドックから外す</string>
     <string name="settings_search_engine">検索と通貨</string>
+    <string name="settings_custom_search_url">カスタム検索URL</string>
+    <string name="settings_custom_search_hint">例: https://example.com/search?q=%s</string>
+    <string name="settings_custom_search_description">%s または {q} が検索キーワードに置き換わります（省略時は末尾に追加）</string>
     <string name="settings_short_break">小休憩の長さ</string>
     <string name="settings_show_labels">アプリ名を表示</string>
     <string name="settings_standard_day">所定労働時間</string>

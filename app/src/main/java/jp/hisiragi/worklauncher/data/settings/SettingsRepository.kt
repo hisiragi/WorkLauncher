@@ -38,6 +38,7 @@ data class LauncherSettings(
     val focusGatesDistractions: Boolean = true,
     val focusVibrates: Boolean = true,
     val searchEngineUrl: String = DEFAULT_SEARCH_ENGINE,
+    val customSearchEngineUrl: String = "",
     val showWorkSummaryCard: Boolean = true,
     val showAgendaCard: Boolean = true,
     val showTasksCard: Boolean = true,
@@ -85,6 +86,7 @@ class SettingsRepository(private val context: Context) {
             focusGatesDistractions = prefs[Keys.FOCUS_GATES] ?: true,
             focusVibrates = prefs[Keys.FOCUS_VIBRATES] ?: true,
             searchEngineUrl = prefs[Keys.SEARCH_ENGINE] ?: LauncherSettings.DEFAULT_SEARCH_ENGINE,
+            customSearchEngineUrl = prefs[Keys.CUSTOM_SEARCH_ENGINE].orEmpty(),
             showWorkSummaryCard = prefs[Keys.CARD_WORK] ?: true,
             showAgendaCard = prefs[Keys.CARD_AGENDA] ?: true,
             showTasksCard = prefs[Keys.CARD_TASKS] ?: true,
@@ -120,6 +122,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setFocusGatesDistractions(enabled: Boolean) = put(Keys.FOCUS_GATES, enabled)
     suspend fun setFocusVibrates(enabled: Boolean) = put(Keys.FOCUS_VIBRATES, enabled)
     suspend fun setSearchEngineUrl(url: String) = put(Keys.SEARCH_ENGINE, url)
+    suspend fun setCustomSearchEngineUrl(url: String) = put(Keys.CUSTOM_SEARCH_ENGINE, url.trim())
     suspend fun setShowWorkSummaryCard(show: Boolean) = put(Keys.CARD_WORK, show)
     suspend fun setShowAgendaCard(show: Boolean) = put(Keys.CARD_AGENDA, show)
     suspend fun setShowTasksCard(show: Boolean) = put(Keys.CARD_TASKS, show)
@@ -157,6 +160,7 @@ class SettingsRepository(private val context: Context) {
         val FOCUS_GATES = booleanPreferencesKey("focus_gates")
         val FOCUS_VIBRATES = booleanPreferencesKey("focus_vibrates")
         val SEARCH_ENGINE = stringPreferencesKey("search_engine")
+        val CUSTOM_SEARCH_ENGINE = stringPreferencesKey("custom_search_engine")
         val CARD_WORK = booleanPreferencesKey("card_work")
         val CARD_AGENDA = booleanPreferencesKey("card_agenda")
         val CARD_TASKS = booleanPreferencesKey("card_tasks")

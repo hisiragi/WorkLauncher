@@ -71,7 +71,9 @@ object Launch {
     }
 
     fun webSearch(context: Context, engineUrl: String, query: String) {
-        val url = engineUrl + Uri.encode(query)
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        val url = jp.hisiragi.worklauncher.domain.SearchEngineHelper.buildSearchUrl(engineUrl, trimmed)
         context.startActivitySafely(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     }
 

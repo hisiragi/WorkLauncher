@@ -54,6 +54,7 @@ import jp.hisiragi.worklauncher.domain.DrawerSort
 import jp.hisiragi.worklauncher.domain.LlmAvailability
 import jp.hisiragi.worklauncher.domain.LlmBackend
 import jp.hisiragi.worklauncher.domain.LauncherApp
+import jp.hisiragi.worklauncher.domain.SearchEngineType
 import jp.hisiragi.worklauncher.domain.ThemeMode
 import jp.hisiragi.worklauncher.ui.components.LabeledRow
 import jp.hisiragi.worklauncher.ui.components.SectionCard
@@ -433,22 +434,33 @@ fun SettingsScreen(
 
             item {
                 SectionCard(title = stringResource(R.string.settings_search_engine)) {
-                    val engines = listOf(
-                        stringResource(R.string.engine_google) to "https://www.google.com/search?q=",
-                        stringResource(R.string.engine_bing) to "https://www.bing.com/search?q=",
-                        stringResource(R.string.engine_duckduckgo) to "https://duckduckgo.com/?q=",
-                    )
+                    val currentEngine = SearchEngineType.fromUrl(settings.searchEngineUrl)
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        engines.forEach { (name, url) ->
+                        SearchEngineType.entries.forEach { engine ->
                             FilterChip(
-                                selected = settings.searchEngineUrl == url,
-                                onClick = { viewModel.setSearchEngine(url) },
-                                label = { Text(name) },
+                                selected = currentEngine == engine,
+                                onClick = { viewModel.selectSearchEngine(engine) },
+                                label = { Text(stringResource(engine.labelRes)) },
                             )
                         }
+                    }
+                    if (currentEngine == SearchEngineType.CUSTOM) {
+                        Spacer(Modifier.height(8.dp))
+                        TextFieldRow(
+                            label = stringResource(R.string.settings_custom_search_url),
+                            placeholder = stringResource(R.string.settings_custom_search_hint),
+                            value = settings.searchEngineUrl,
+                            onValueChange = viewModel::setCustomSearchEngine,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.settings_custom_search_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(

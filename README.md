@@ -21,7 +21,7 @@ calendar agenda, notes, quick contacts, expenses and screen-time insight — all
 - 上スワイプ、または検索バーからアプリドロワーへ
 
 ### アプリドロワー
-- インクリメンタル検索（該当がなければそのままウェブ検索へ）
+- インクリメンタル検索（該当がなければ設定した検索エンジンでそのままウェブ検索へ）
 - **仕事／プライベート／ツール／未分類** のカテゴリ絞り込み
 - 名前順・使用回数順・最近使った順の並び替え
 - 長押しメニュー：ドックに追加、非表示、名前変更、集中の妨げに設定、アプリ情報、アンインストール
@@ -60,7 +60,7 @@ calendar agenda, notes, quick contacts, expenses and screen-time insight — all
 ### 設定
 既定のホームアプリ設定への導線、テーマ（システム／ライト／ダーク）と Material You、
 グリッド列数、アプリ名表示、24 時間表示、勤務時間・勤務日・所定労働時間、
-ポモドーロの各長さ、検索エンジン、通貨記号、ドック／非表示／妨げアプリの一覧管理。
+ポモドーロの各長さ、検索エンジン（Google／Bing／Yahoo! JAPAN／Brave／Startpage／DuckDuckGo／カスタムURL）、通貨記号、ドック／非表示／妨げアプリの一覧管理。
 
 ---
 
