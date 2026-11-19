@@ -79,7 +79,13 @@ class AppContainer(context: Context) {
     val appIconLoader: AppIconLoader by lazy { AppIconLoader(appContext) }
 
     val appRepository: AppRepository by lazy {
-        AppRepository(appContext, database.appMetaDao(), applicationScope, appIconLoader::clear)
+        AppRepository(
+            context = appContext,
+            appMetaDao = database.appMetaDao(),
+            appCacheDao = database.appCacheDao(),
+            scope = applicationScope,
+            onPackagesChanged = appIconLoader::invalidate,
+        )
     }
 
     val calendarRepository: CalendarRepository by lazy { CalendarRepository(appContext) }

@@ -8,8 +8,10 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import androidx.core.content.ContextCompat
+import jp.hisiragi.worklauncher.data.db.AppCacheDao
 import jp.hisiragi.worklauncher.data.db.AppMetaDao
 import jp.hisiragi.worklauncher.data.db.AppMetaEntity
+import jp.hisiragi.worklauncher.data.db.CachedActivityEntity
 import jp.hisiragi.worklauncher.domain.AppCategory
 import jp.hisiragi.worklauncher.domain.AppOrdering
 import jp.hisiragi.worklauncher.domain.LauncherApp
@@ -30,9 +32,10 @@ import kotlinx.coroutines.withContext
 class AppRepository(
     private val context: Context,
     private val appMetaDao: AppMetaDao,
+    private val appCacheDao: AppCacheDao,
     private val scope: CoroutineScope,
-    /** Called when packages change, so stale icons are not shown. */
-    private val onPackagesChanged: () -> Unit = {},
+    /** Called with the changed package, or null when the whole list is suspect. */
+    private val onPackagesChanged: (String?) -> Unit = {},
 ) {
     private val packageManager: PackageManager = context.packageManager
 
@@ -66,7 +69,7 @@ class AppRepository(
 
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            onPackagesChanged()
+            onPackagesChanged(intent?.data?.schemeSpecificPart)
             scope.launch { refresh() }
         }
     }
@@ -85,7 +88,30 @@ class AppRepository(
             filter,
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
-        scope.launch { refresh() }
+        scope.launch {
+            seedFromCache()
+            refresh()
+        }
+    }
+
+    /**
+     * Shows the last known list straight away. Querying the package manager and
+     * loading a label for every app takes long enough to leave the drawer empty
+     * on a cold start, and the answer is almost always what it was last time.
+     */
+    private suspend fun seedFromCache() = withContext(Dispatchers.IO) {
+        if (installed.value.isNotEmpty()) return@withContext
+        val cached = runCatching { appCacheDao.listAll() }.getOrDefault(emptyList())
+        if (cached.isEmpty()) return@withContext
+        installed.value = cached.map { entry ->
+            InstalledActivity(
+                packageName = entry.packageName,
+                activityName = entry.activityName,
+                label = entry.label,
+                isSystemApp = entry.isSystemApp,
+                autoCategory = AppCategory.fromKey(entry.autoCategory),
+            )
+        }
     }
 
     suspend fun refresh() = withContext(Dispatchers.IO) {
@@ -94,7 +120,7 @@ class AppRepository(
             packageManager.queryIntentActivities(intent, PackageManager.MATCH_ALL)
         }.getOrElse { emptyList() }
 
-        installed.value = resolveInfos.mapNotNull { info ->
+        val fresh = resolveInfos.mapNotNull { info ->
             val activityInfo = info.activityInfo ?: return@mapNotNull null
             // The launcher never lists itself: tapping it from the drawer is a no-op.
             if (activityInfo.packageName == context.packageName) return@mapNotNull null
@@ -113,6 +139,23 @@ class AppRepository(
                 ),
             )
         }.distinctBy { it.componentKey }
+
+        if (fresh == installed.value) return@withContext
+        installed.value = fresh
+        runCatching {
+            appCacheDao.replaceAll(
+                fresh.map { activity ->
+                    CachedActivityEntity(
+                        componentKey = activity.componentKey,
+                        packageName = activity.packageName,
+                        activityName = activity.activityName,
+                        label = activity.label,
+                        isSystemApp = activity.isSystemApp,
+                        autoCategory = activity.autoCategory.name,
+                    )
+                }
+            )
+        }
     }
 
     suspend fun recordLaunch(app: LauncherApp) {
@@ -162,6 +205,7 @@ class AppRepository(
         appMetaDao.upsert(transform(existing))
     }
 
+    /** Compared wholesale to decide whether the cache needs rewriting. */
     private data class InstalledActivity(
         val packageName: String,
         val activityName: String,

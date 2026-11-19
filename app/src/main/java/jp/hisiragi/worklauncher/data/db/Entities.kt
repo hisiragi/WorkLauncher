@@ -121,3 +121,21 @@ data class HomeWidgetEntity(
     val stackOrder: Int = 0,
     val heightDp: Int = 180,
 )
+
+/**
+ * The launchable activities as last read from the package manager.
+ *
+ * Enumerating them and loading every label costs a round trip to the system for
+ * each app, which left the drawer empty on a cold start. The list is kept here
+ * so the drawer can draw immediately while the real query runs behind it.
+ */
+@Entity(tableName = "app_cache")
+data class CachedActivityEntity(
+    @PrimaryKey val componentKey: String,
+    val packageName: String,
+    val activityName: String,
+    val label: String,
+    val isSystemApp: Boolean,
+    /** Serialized [jp.hisiragi.worklauncher.domain.AppCategory]. */
+    val autoCategory: String,
+)

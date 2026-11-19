@@ -17,8 +17,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AppMetaEntity::class,
         ExpenseEntity::class,
         HomeWidgetEntity::class,
+        CachedActivityEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class WorkDatabase : RoomDatabase() {
@@ -30,6 +31,7 @@ abstract class WorkDatabase : RoomDatabase() {
     abstract fun appMetaDao(): AppMetaDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun homeWidgetDao(): HomeWidgetDao
+    abstract fun appCacheDao(): AppCacheDao
 
     companion object {
         private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -57,11 +59,28 @@ abstract class WorkDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS app_cache (
+                        componentKey TEXT NOT NULL PRIMARY KEY,
+                        packageName TEXT NOT NULL,
+                        activityName TEXT NOT NULL,
+                        label TEXT NOT NULL,
+                        isSystemApp INTEGER NOT NULL,
+                        autoCategory TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun build(context: Context): WorkDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 WorkDatabase::class.java,
                 "worklauncher.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
     }
 }

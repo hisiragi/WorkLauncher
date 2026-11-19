@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
@@ -187,4 +188,23 @@ interface HomeWidgetDao {
 
     @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM home_widgets WHERE stackId = :stackId")
     suspend fun nextPosition(stackId: String): Int
+}
+
+@Dao
+interface AppCacheDao {
+    @Query("SELECT * FROM app_cache")
+    suspend fun listAll(): List<CachedActivityEntity>
+
+    @Query("DELETE FROM app_cache")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(entries: List<CachedActivityEntity>)
+
+    /** Swapped wholesale so a removed app cannot linger in the cache. */
+    @Transaction
+    suspend fun replaceAll(entries: List<CachedActivityEntity>) {
+        deleteAll()
+        insertAll(entries)
+    }
 }
