@@ -9,11 +9,17 @@ import jp.hisiragi.worklauncher.domain.AppCategory
 import jp.hisiragi.worklauncher.domain.AppOrdering
 import jp.hisiragi.worklauncher.domain.DrawerSort
 import jp.hisiragi.worklauncher.domain.LauncherApp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -39,28 +45,56 @@ class AppDrawerViewModel(private val container: AppContainer) : ViewModel() {
 
     val gatedApp: StateFlow<LauncherApp?> = container.appLauncher.gatedApp
 
-    private val filters = combine(query, categoryFilter, showHidden) { q, category, hidden ->
+    private val drawerSort: StateFlow<DrawerSort> = container.settingsRepository.settings
+        .map { it.drawerSort }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DrawerSort.ALPHABETICAL)
+
+    /**
+     * Ordering does not depend on the query, so the list is sorted only when the
+     * apps or the chosen order change. The filtering below preserves that order,
+     * which keeps typing off the sort path entirely.
+     */
+    private val sortedApps = combine(
+        container.appRepository.apps,
+        drawerSort,
+    ) { apps, sort ->
+        AppOrdering.sorted(apps, sort)
+    }.flowOn(Dispatchers.Default)
+
+    @OptIn(FlowPreview::class)
+    private val debouncedQuery = query.debounce { if (it.isBlank()) 0L else QUERY_DEBOUNCE_MS }
+
+    private val filters = combine(debouncedQuery, categoryFilter, showHidden) { q, category, hidden ->
         Triple(q, category, hidden)
     }
 
     val uiState: StateFlow<AppDrawerUiState> = combine(
-        container.appRepository.apps,
+        sortedApps,
         container.settingsRepository.settings,
         filters,
     ) { apps, settings, (q, category, includeHidden) ->
-        val visible = apps.filter { includeHidden || !it.hidden }
-        val filtered = visible
-            .filter { category == null || it.category == category }
-            .filter { q.isBlank() || it.label.contains(q, ignoreCase = true) }
+        var total = 0
+        val filtered = apps.filter { app ->
+            val visible = includeHidden || !app.hidden
+            if (visible) total++
+            visible &&
+                (category == null || app.category == category) &&
+                (q.isBlank() || app.label.contains(q, ignoreCase = true))
+        }
         AppDrawerUiState(
             settings = settings,
             query = q,
             categoryFilter = category,
             showHidden = includeHidden,
-            apps = filtered.sortedWith(AppOrdering.forSort(settings.drawerSort)),
-            totalCount = visible.size,
+            apps = filtered,
+            totalCount = total,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDrawerUiState())
+    }
+        // Filtering a few hundred apps is not free, and the default would run it
+        // on the main thread on every emission.
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppDrawerUiState())
 
     fun setQuery(value: String) {
         query.value = value
@@ -130,4 +164,9 @@ class AppDrawerViewModel(private val container: AppContainer) : ViewModel() {
 
     private fun nextDockOrder(): Int =
         (container.appRepository.apps.value.filter { it.favorite }.maxOfOrNull { it.dockOrder } ?: 0) + 1
+
+    private companion object {
+        /** Long enough to skip the intermediate states of a fast typist. */
+        const val QUERY_DEBOUNCE_MS = 120L
+    }
 }

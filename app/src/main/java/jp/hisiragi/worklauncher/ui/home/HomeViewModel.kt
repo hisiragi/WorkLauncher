@@ -18,6 +18,7 @@ import jp.hisiragi.worklauncher.domain.WorkPlace
 import jp.hisiragi.worklauncher.service.FocusState
 import jp.hisiragi.worklauncher.util.TimeUtils
 import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -115,17 +117,33 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         WorkSlice(settings, cards.firstOrNull(), tasks, events, now)
     }
 
+    /**
+     * The clock ticks once a second, and everything derived from the app list
+     * would be recomputed on every tick if it sat in the combine below. It only
+     * changes when the apps do, so it is derived separately.
+     */
+    private val appSlice = container.appRepository.apps.map { apps ->
+        val visible = apps.filterNot { it.hidden }
+        AppSlice(
+            dock = visible.filter { it.favorite }.sortedBy { it.dockOrder }.take(DOCK_CAPACITY),
+            candidates = visible.filterNot { it.favorite },
+            suggested = visible
+                .filter { it.launchCount > 0 }
+                .sortedByDescending { it.launchCount }
+                .take(SUGGESTED_COUNT),
+        )
+    }.flowOn(Dispatchers.Default)
+
     val uiState: StateFlow<HomeUiState> = combine(
         workSlice,
         container.focusController.state,
-        container.appRepository.apps,
+        appSlice,
         focusSecondsToday,
         calendarPermission,
     ) { slice, focus, apps, focusSeconds, hasCalendar ->
         val todayEnd = TimeUtils.endOfDayMillis(
             TimeUtils.toLocalDateTime(slice.now).toLocalDate()
         )
-        val visible = apps.filterNot { it.hidden }
         HomeUiState(
             settings = slice.settings,
             nowMillis = slice.now,
@@ -140,14 +158,13 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             calendarPermissionGranted = hasCalendar,
             focus = focus,
             focusMinutesToday = focusSeconds / 60,
-            dockApps = visible.filter { it.favorite }.sortedBy { it.dockOrder }.take(DOCK_CAPACITY),
-            dockCandidates = visible.filterNot { it.favorite },
-            suggestedApps = visible
-                .filter { it.launchCount > 0 }
-                .sortedByDescending { it.launchCount }
-                .take(8),
+            dockApps = apps.dock,
+            dockCandidates = apps.candidates,
+            suggestedApps = apps.suggested,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     init {
         // Reload the agenda on the first frame and again whenever the date changes.
@@ -294,7 +311,14 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     companion object {
         /** Slots beside the drawer button; the row has no room for more. */
         const val DOCK_CAPACITY = 5
+        private const val SUGGESTED_COUNT = 8
     }
+
+    private class AppSlice(
+        val dock: List<LauncherApp>,
+        val candidates: List<LauncherApp>,
+        val suggested: List<LauncherApp>,
+    )
 
     private data class WorkSlice(
         val settings: LauncherSettings,

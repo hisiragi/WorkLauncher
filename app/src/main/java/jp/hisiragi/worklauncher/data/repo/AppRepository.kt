@@ -61,7 +61,7 @@ class AppRepository(
                     lastLaunchedAt = meta?.lastLaunchedAt ?: 0,
                     isSystemApp = activity.isSystemApp,
                 )
-            }.sortedWith(AppOrdering.byLabel())
+            }.let(AppOrdering::sorted)
         }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     private val packageReceiver = object : BroadcastReceiver() {

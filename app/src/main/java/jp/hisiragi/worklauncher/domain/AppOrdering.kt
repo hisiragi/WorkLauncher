@@ -1,6 +1,7 @@
 package jp.hisiragi.worklauncher.domain
 
 import java.text.Collator
+import java.text.CollationKey
 import java.util.Locale
 
 /**
@@ -14,27 +15,40 @@ object AppOrdering {
      * Collators are not thread-safe and building one is not free, so a fresh
      * instance is made per sort rather than shared.
      */
-    fun labelComparator(locale: Locale = Locale.getDefault()): Comparator<String> {
-        val collator = Collator.getInstance(locale).apply {
+    private fun collator(locale: Locale): Collator =
+        Collator.getInstance(locale).apply {
             // Treat case and accents as ties so "chrome" and "Chrome" stay adjacent.
             strength = Collator.SECONDARY
         }
+
+    /** Kept for comparing bare labels; [sorted] is the path the drawer uses. */
+    fun labelComparator(locale: Locale = Locale.getDefault()): Comparator<String> {
+        val collator = collator(locale)
         return Comparator { left, right -> collator.compare(left.trim(), right.trim()) }
     }
 
-    fun byLabel(locale: Locale = Locale.getDefault()): Comparator<LauncherApp> {
-        val labels = labelComparator(locale)
-        return Comparator { left, right -> labels.compare(left.label, right.label) }
+    /**
+     * Collating a pair costs far more than comparing two numbers, and a sort asks
+     * for ~n log n comparisons. Each label's key is computed once up front so the
+     * sort itself compares keys, which is a plain byte comparison.
+     */
+    fun sorted(
+        apps: List<LauncherApp>,
+        sort: DrawerSort = DrawerSort.ALPHABETICAL,
+        locale: Locale = Locale.getDefault(),
+    ): List<LauncherApp> {
+        if (apps.size < 2) return apps
+        val collator = collator(locale)
+        val keyed = apps.map { Keyed(it, collator.getCollationKey(it.label.trim())) }
+        val comparator: Comparator<Keyed> = when (sort) {
+            DrawerSort.ALPHABETICAL -> compareBy { it.key }
+            DrawerSort.MOST_USED ->
+                compareByDescending<Keyed> { it.app.launchCount }.thenBy { it.key }
+            DrawerSort.RECENT ->
+                compareByDescending<Keyed> { it.app.lastLaunchedAt }.thenBy { it.key }
+        }
+        return keyed.sortedWith(comparator).map { it.app }
     }
 
-    fun forSort(sort: DrawerSort, locale: Locale = Locale.getDefault()): Comparator<LauncherApp> {
-        val byLabel = byLabel(locale)
-        return when (sort) {
-            DrawerSort.ALPHABETICAL -> byLabel
-            DrawerSort.MOST_USED ->
-                compareByDescending<LauncherApp> { it.launchCount }.then(byLabel)
-            DrawerSort.RECENT ->
-                compareByDescending<LauncherApp> { it.lastLaunchedAt }.then(byLabel)
-        }
-    }
+    private class Keyed(val app: LauncherApp, val key: CollationKey)
 }
