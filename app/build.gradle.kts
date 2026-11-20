@@ -107,6 +107,22 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // Robolectric renders the real composables on the JVM, which it can only do
+    // with the app's resources and manifest on the unit-test classpath.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.systemProperty("robolectric.graphicsMode", "NATIVE")
+                it.systemProperty(
+                    "roborazzi.output.dir",
+                    layout.buildDirectory.dir("screenshots").get().asFile.path,
+                )
+                it.systemProperty("roborazzi.test.record", "true")
+            }
+        }
+    }
 }
 
 ksp {
@@ -148,6 +164,13 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

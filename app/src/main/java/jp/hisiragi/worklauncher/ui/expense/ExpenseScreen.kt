@@ -269,7 +269,11 @@ private fun ExpenseRow(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            // Card derives its content colour from the container, and an
+            // alpha-modified colour matches no role, so it would fall back to
+            // black — unreadable on a dark card.
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     ) {
         Row(

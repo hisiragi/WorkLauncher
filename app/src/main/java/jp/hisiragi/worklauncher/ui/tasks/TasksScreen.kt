@@ -238,7 +238,11 @@ private fun TaskRow(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            // Card derives its content colour from the container, and an
+            // alpha-modified colour matches no role, so it would fall back to
+            // black — unreadable on a dark card.
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
     ) {
         Row(
